@@ -1,5 +1,5 @@
 interface Product {
-    product: {
+ 
         app_sale_price: string;
         original_price: string;
         product_detail_url: string;
@@ -29,12 +29,13 @@ interface Product {
         sale_price: string;
         product_title: string;
         hot_product_commission_rate: string;
+        promo_code_info: {promo_code: string;}
         shop_id: number;
         app_sale_price_currency: string;
         sale_price_currency: string;
         lastest_volume: number;
         target_app_sale_price: string;
         commission_rate: string;
-    };
+    
   }
   
