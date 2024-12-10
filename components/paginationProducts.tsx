@@ -40,7 +40,7 @@ export const PaginationProducts = (): JSX.Element => {
       };
       
   return (
-    <Pagination>
+    <Pagination className="mt-10">
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious href="#" />

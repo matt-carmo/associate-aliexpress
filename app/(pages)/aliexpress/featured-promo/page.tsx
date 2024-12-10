@@ -35,7 +35,7 @@ export default function Page() {
   const [products, setProducts] = useState([]);
   const searchParams = useSearchParams();
   const [promos, setPromos] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const sortOptions = [
     "commissionAsc",
     "commissionDesc",

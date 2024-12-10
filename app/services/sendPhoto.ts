@@ -8,6 +8,7 @@ export const sendPhoto = async ({chatId, photoUrl, text}: {chatId: number, photo
   return axios.post(url, {
     chat_id: chatId,
     photo: photoUrl,
+    parse_mode: 'HTML',
     caption: text
   });
 };

@@ -11,6 +11,8 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { sendPhoto } from "@/app/services/sendPhoto";
 import { useState } from "react";
+import { DialogTitle } from "@radix-ui/react-dialog";
+import Image from "next/image";
 
 export const DialogProduct = (props: { product: Product }): JSX.Element => {
   const product = props.product;
@@ -33,7 +35,7 @@ export const DialogProduct = (props: { product: Product }): JSX.Element => {
               setTextArea(`
                 🔥 ${product.product_title}
                 \n✅ Por: R$ ${product.target_app_sale_price} 😱😱
-${product.promo_code_info ? `\n🏷️ **Cupom**: \`${product.promo_code_info.promo_code}\`\n` : ''}
+${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_info.promo_code}</code>,\n` : ''}
 🛒 ${afiliateLink}
                 \n😎🚀 Para mais ofertas, acesse: ...
                 `.trim());
@@ -47,6 +49,15 @@ ${product.promo_code_info ? `\n🏷️ **Cupom**: \`${product.promo_code_info.pr
           <Product product={product} />
         </DialogTrigger>
         <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <DialogTitle>
+            <Image 
+              src={product.product_main_image_url}
+              alt={product.product_title}
+              width={500}
+              height={500}
+              className="object-contain aspect-square w-full "
+            />
+          </DialogTitle>
           <DialogHeader>
             {!loadingTextArea ? (
               <Textarea
