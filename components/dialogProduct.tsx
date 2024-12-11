@@ -81,7 +81,7 @@ ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_i
                 sendPhoto({
                   text: textArea,
                   photoUrl: product.product_main_image_url,
-                  chatId: -1002364747064,
+                  chatId: -1002399025968,
                 })
                   .then(() => {
                     setSending('EnViado');
