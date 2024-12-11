@@ -34,7 +34,8 @@ export const DialogProduct = (props: { product: Product }): JSX.Element => {
 
               setTextArea(`
                 🔥 ${product.product_title}
-                \n✅ Por: R$ ${product.target_app_sale_price} 😱😱
+                \n❌ De:   <s>R$ ${product.target_original_price}</s>    
+✅ Por: R$ ${product.target_app_sale_price} 😱😱
 ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_info.promo_code}</code>,\n` : ''}
 🛒 ${afiliateLink}
                 \n😎🚀 Para mais ofertas, acesse: ...
@@ -80,7 +81,7 @@ ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_i
                 sendPhoto({
                   text: textArea,
                   photoUrl: product.product_main_image_url,
-                  chatId: 7578747075,
+                  chatId: -1002364747064,
                 })
                   .then(() => {
                     setSending('EnViado');
