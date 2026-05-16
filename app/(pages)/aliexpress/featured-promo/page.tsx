@@ -8,31 +8,15 @@ import {
   SelectSortFeatured,
 } from "@/components/filters";
 import { Product } from "@/components/product";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useFilterContext } from "@/hooks/filters";
-import {
-  generateAffiliateLink,
-  getFeaturedProducts,
-  getFeaturedPromos,
-} from "@/lib/services";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { categories } from "@/lib/utils/categories";
 import { DialogProduct } from "@/components/dialogProduct";
 import { Pagination } from "@/components/ui/pagination";
 import { PaginationProducts } from "@/components/paginationProducts";
 import { LoadingProdutsSkeleton } from "@/components/loadings";
 export default function Page() {
   const [products, setProducts] = useState([]);
+  const [error, setError] = useState("");
   const searchParams = useSearchParams();
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,20 +37,24 @@ export default function Page() {
   const _getProducts = async (keyword?: string) => {
     setLoading(true);
     setProducts([]);
+    setError("");
     try {
-      const { product } = await getFeaturedProducts({
-        category_id: searchParams.get("category") || "",
-        keywords: searchParams.get("search") || "",
-        promotion_name: searchParams.get("promo") || "",
-        page_no: parseInt(searchParams.get("page") || "1"),
-        sort: searchParams.get("sort") || "",
-      });
+      const response = await fetch(
+        `/api/aliexpress?type=featured-products&category_id=${encodeURIComponent(searchParams.get("category") || "")}&keywords=${encodeURIComponent(searchParams.get("search") || "")}&promotion_name=${encodeURIComponent(searchParams.get("promo") || "")}&page_no=${encodeURIComponent(searchParams.get("page") || "1")}&sort=${encodeURIComponent(searchParams.get("sort") || "")}`
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Failed to fetch products");
+      }
+
+      const { product } = await response.json();
 
       if (product.length > 0) {
         setProducts(product);
       }
     } catch (error) {
-      console.log(error);
+      setError(error instanceof Error ? error.message : "Failed to fetch products");
     }
     finally {
       setLoading(false);
@@ -77,7 +65,13 @@ export default function Page() {
       if(sessionStorage.getItem('promos')) {
         return setPromos(JSON.parse(sessionStorage.getItem('promos') || ''));  
       }
-      const promos = await getFeaturedPromos();
+      const response = await fetch(`/api/aliexpress?type=featured-promos`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch promos");
+      }
+
+      const promos = await response.json();
       sessionStorage.setItem("promos", JSON.stringify(promos));
       setPromos(promos);
     } catch (err) {
@@ -96,6 +90,8 @@ export default function Page() {
         <SelectPromos arr={promos} />
         <SelectSortFeatured options={sortOptions} />
       </FiltersGroup>
+
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
       <ul className="grid grid-cols-4 gap-3 mt-3">
         {loading && <LoadingProdutsSkeleton />}

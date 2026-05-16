@@ -1,7 +1,6 @@
 import crypto from 'crypto';
-import { appSecret } from './defaultParams';
 
-export const signRequest = (parameters: {[key: string]: any}) => {
+export const signRequest = (parameters: {[key: string]: any}, appSecret: string) => {
     const sortObject = (obj:{[key: string]: any}) => {
       return Object.keys(obj)
         .sort()

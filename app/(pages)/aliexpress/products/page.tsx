@@ -2,43 +2,37 @@
 
 import { FiltersGroup, Search, SelectCategory, SelectSortFeatured } from "@/components/filters";
 import { Product } from "@/components/product";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useFilterContext } from "@/hooks/filters";
-import { generateAffiliateLink, getProducts } from "@/lib/services";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { DialogProduct } from "@/components/dialogProduct";
 import { PaginationProducts } from "@/components/paginationProducts";
 export default function Page() {
   const [products, setProducts] = useState([]);
+  const [error, setError] = useState("");
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
   const _getProducts = async (keyword?: string) => {
     setLoading(true);
     setProducts([]);
+    setError("");
     try {
-      const { product } = await getProducts({
-        category_ids: searchParams.get("category") || "",
-        keywords: searchParams.get("search") || "",
-        page_no: parseInt(searchParams.get("page") || "1"),
-        sort: searchParams.get("sort") || "",
-      });
+      const response = await fetch(
+        `/api/aliexpress?type=products&category_ids=${encodeURIComponent(searchParams.get("category") || "")}&keywords=${encodeURIComponent(searchParams.get("search") || "")}&page_no=${encodeURIComponent(searchParams.get("page") || "1")}&sort=${encodeURIComponent(searchParams.get("sort") || "")}`
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Failed to fetch products");
+      }
+
+      const { product } = await response.json();
 
       if (product.length > 0) {
         setProducts(product);
       }
     } catch (error) {
-      console.log(error);
+      setError(error instanceof Error ? error.message : "Failed to fetch products");
     } finally {
       setLoading(false);
     }
@@ -53,6 +47,8 @@ export default function Page() {
         <SelectCategory />
         <SelectSortFeatured options={['SALE_PRICE_ASC', 'SALE_PRICE_DESC', 'LAST_VOLUME_ASC', 'LAST_VOLUME_DESC']} />
       </FiltersGroup>
+
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
       <ul className="grid grid-cols-4 gap-3 mt-3">
         {loading && <p>Carregando...</p>}

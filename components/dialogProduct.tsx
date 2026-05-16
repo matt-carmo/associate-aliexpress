@@ -1,4 +1,3 @@
-import { generateAffiliateLink } from "@/lib/services";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,6 @@ import {
 import { Product } from "./product";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import { sendPhoto } from "@/app/services/sendPhoto";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import Image from "next/image";
@@ -28,16 +26,22 @@ export const DialogProduct = (props: { product: Product }): JSX.Element => {
           onClick={async () => {
             setLoadingTextArea(true);
             try {
-              const afiliateLink = await generateAffiliateLink({
-                product_detail_url: product.product_detail_url,
-              });
+              const response = await fetch(
+                `/api/aliexpress?type=affiliate-link&product_detail_url=${encodeURIComponent(product.product_detail_url)}`
+              );
+
+              if (!response.ok) {
+                throw new Error("Failed to generate affiliate link");
+              }
+
+              const { promotionLink } = await response.json();
 
               setTextArea(`
                 🔥 ${product.product_title}
                 \n❌ De:   <s>R$ ${product.target_original_price}</s>    
 ✅ Por: R$ ${product.target_app_sale_price} 😱😱
 ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_info.promo_code}</code>,\n` : ''}
-🛒 ${afiliateLink}
+🛒 ${promotionLink}
                 \n😎🚀 Para mais ofertas, acesse: ...
                 `.trim());
                                 
@@ -76,20 +80,29 @@ ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_i
           </DialogHeader>
           <DialogFooter>
             <Button
-              onClick={() => {
+              onClick={async () => {
                 setSending('Enviando');
-                sendPhoto({
-                  text: textArea,
-                  photoUrl: product.product_main_image_url,
-                  chatId: -1002399025968,
-                })
-                  .then(() => {
-                    setSending('EnViado');
-                  })
-                  .catch((error) => {
-                    setSending('Erro');
+                try {
+                  const response = await fetch("/api/send", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      chatId: -1002399025968,
+                      photoUrl: product.product_main_image_url,
+                      caption: textArea,
+                    }),
                   });
-               
+
+                  if (!response.ok) {
+                    throw new Error("Failed to send photo");
+                  }
+
+                  setSending('EnViado');
+                } catch (error) {
+                  setSending('Erro');
+                }
               }}
             >
               {sending}

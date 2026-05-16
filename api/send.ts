@@ -1,6 +1,7 @@
 import { sendPhoto } from '@/app/services/sendPhoto';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const { chatId, photoUrl, caption } = req.body;
 
@@ -9,7 +10,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      await sendPhoto(chatId, photoUrl, caption);
+      await sendPhoto({ chatId, photoUrl, text: caption ?? '' });
       res.status(200).json({ message: 'Photo sent successfully!' });
     } catch (error) {
       res.status(500).json({ error: 'Failed to send photo' });
