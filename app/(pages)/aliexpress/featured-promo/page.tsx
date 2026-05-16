@@ -42,7 +42,7 @@ export default function Page() {
       const response = await fetch(
         `/api/aliexpress?type=featured-products&category_id=${encodeURIComponent(searchParams.get("category") || "")}&keywords=${encodeURIComponent(searchParams.get("search") || "")}&promotion_name=${encodeURIComponent(searchParams.get("promo") || "")}&page_no=${encodeURIComponent(searchParams.get("page") || "1")}&sort=${encodeURIComponent(searchParams.get("sort") || "")}`
       );
-
+      console.log(response);
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || "Failed to fetch products");

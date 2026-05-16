@@ -12,7 +12,7 @@ import {
   generateTelegramCaption,
 } from "@/lib/intelligence/telegramPublishing";
 
-const DEFAULT_CHAT_ID = "-7002399025968";
+const DEFAULT_CHAT_ID = "-1002399025968";
 
 export const TelegramPublishDialog = ({ product }: { product: DiscoveryProduct }): JSX.Element => {
   const [open, setOpen] = useState(false);
@@ -57,7 +57,7 @@ export const TelegramPublishDialog = ({ product }: { product: DiscoveryProduct }
         }
 
         const payload = await response.json();
-        const promotionLink = payload.promotionLink || detailUrl;
+        const promotionLink = payload.promotionLink;
         setAffiliateLink(promotionLink);
         setCaption(buildCaption(promotionLink));
         setStatus("ready");

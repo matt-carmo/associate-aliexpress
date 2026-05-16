@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { DISCOVERY_MODE_CONFIG, buildDiscoveryUrl, getDiscoverySourcesForMode, type DiscoveryMode, type DiscoveryProduct } from "@/lib/intelligence/marketplaceDiscovery";
-import { calculateTelegramCandidateScore, buildMarketplaceBadges } from "@/lib/intelligence/telegramPublishing";
+import { buildQualityWarnings, calculateTelegramCandidateScore, buildMarketplaceBadges, generateTelegramCaption } from "@/lib/intelligence/telegramPublishing";
 import MarketplaceCard from "./MarketplaceCard";
-import { ChevronDown, Filter, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ChevronDown, Clock3, Filter, Play, Search, ShieldCheck, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { enqueueMany, getQueue, isQueued } from "@/lib/queueStorage";
 
 const FOCUS_FILTERS = [
   { id: "all", label: "All tech" },
@@ -51,6 +54,10 @@ const matchesSearch = (product: DiscoveryProduct, searchTerm: string): boolean =
   return searchTerm.toLowerCase().split(/\s+/).filter(Boolean).every((term) => text.includes(term));
 };
 
+const getQueueId = (product: DiscoveryProduct): string => {
+  return String(product.productId || product.detailUrl || product.title || product.categoryName || "unknown-product");
+};
+
 export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Element => {
   const modeConfig = DISCOVERY_MODE_CONFIG[mode];
   const sources = useMemo(() => getDiscoverySourcesForMode(mode), [mode]);
@@ -64,6 +71,7 @@ export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Ele
   const [batchPage, setBatchPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [hideLowSignal, setHideLowSignal] = useState(mode === "telegram-candidates");
+  const [queueMessage, setQueueMessage] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const enrichProduct = (product: any, sourceId: string, sourceLabel: string, sourceWeight: number, poolName: string, focusTags: string[]): DiscoveryProduct => {
@@ -196,6 +204,41 @@ export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Ele
     return { count, topScore, averageScore, telegramReady };
   }, [visibleProducts]);
 
+  const queueReadyProducts = useMemo(() => {
+    return visibleProducts.filter((product) => {
+      const candidate = calculateTelegramCandidateScore(product);
+      const warnings = buildQualityWarnings(product, candidate.score);
+      return warnings.length === 0 || (warnings.length === 1 && warnings[0] === "No issues detected.");
+    });
+  }, [visibleProducts]);
+
+  const handleQueueCurrentFeed = () => {
+    const queueItems = queueReadyProducts
+      .filter((product) => !isQueued(getQueueId(product)))
+      .map((product) => {
+        const id = getQueueId(product);
+        const candidate = calculateTelegramCandidateScore(product);
+        const caption = generateTelegramCaption(product, product.detailUrl || "", candidate.score);
+
+        return {
+          id,
+          data: {
+            ...product,
+            queuedCaption: caption,
+            queuedFromMode: mode,
+          },
+        };
+      });
+
+    if (queueItems.length === 0) {
+      setQueueMessage("Nenhum produto elegível para queue nesta tela.");
+      return;
+    }
+
+    enqueueMany(queueItems);
+    setQueueMessage(`${queueItems.length} produto(s) adicionados à queue desta tela.`);
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_36%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)] text-white">
       <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
@@ -271,6 +314,11 @@ export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Ele
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={handleQueueCurrentFeed} className="gap-2">
+                <Play className="h-4 w-4" />
+                Queue desta tela
+              </Button>
+
               <button
                 type="button"
                 onClick={() => setHideLowSignal((value) => !value)}
@@ -299,6 +347,18 @@ export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Ele
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              {queueReadyProducts.length} pronto(s) para queue
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+              <Clock3 className="h-4 w-4 text-cyan-300" />
+              O feed continua puxando a próxima página automaticamente
+            </span>
+            {queueMessage ? <span className="text-cyan-200">{queueMessage}</span> : null}
           </div>
         </section>
 

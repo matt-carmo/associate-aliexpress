@@ -35,7 +35,7 @@ export const DISCOVERY_SOURCES: DiscoverySource[] = [
       sort: "LAST_VOLUME_DESC",
     },
     weight: 100,
-    focusTags: ["gadget", "rgb", "gaming", "audio", "smart"],
+    focusTags: ["gadget", "rgb", "gaming", "smart"],
     accent: "from-fuchsia-500 to-violet-500",
   },
   {
@@ -146,7 +146,7 @@ export const DISCOVERY_MODE_CONFIG: Record<DiscoveryMode, DiscoveryModeConfig> =
     subtitle: "Only the products most likely to convert on Telegram channels.",
     eyebrow: "Publish-ready candidate queue",
     strictTelegramGate: true,
-    candidateFloor: 68,
+    candidateFloor: 62,
     sourceIds: DISCOVERY_SOURCES.map((source) => source.id),
   },
 };

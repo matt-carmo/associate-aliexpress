@@ -35,6 +35,10 @@ const items = [
         title: "Telegram Candidates",
         url: "/telegram-candidates",
       },
+      {
+        title: "Telegram Queue",
+        url: "/telegram-queue",
+      },
     ],
   },
   {

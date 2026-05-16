@@ -413,7 +413,10 @@ export const generateTelegramCaption = (
     .slice(0, 3)
     .join(" • ");
   const title = escapeHtml(product.title || "Produto sem título");
-  const link = escapeHtml(affiliateLink);
+  const safeLink = typeof affiliateLink === "string" ? affiliateLink.trim() : "";
+  const linkLine = safeLink
+    ? `🔗 ${safeLink}`
+    : "";
 
   // Friendly, inviting intro
   return [
@@ -426,7 +429,7 @@ export const generateTelegramCaption = (
     `${rating} • ${sales}`,
     badgeLine ? `✨ ${badgeLine}` : "",
     "",
-    `🔗 <a href=\"${link}\">Ver oferta no AliExpress</a>`
+    linkLine,
   ]
     .filter(Boolean)
     .join("\n");
