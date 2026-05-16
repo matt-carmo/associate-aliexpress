@@ -359,17 +359,17 @@ export const buildQualityWarnings = (
   const warnings: string[] = [];
   const gate = evaluateTelegramGate(product, TELEGRAM_GATE_CONFIG);
 
-  if (!gate.approved) {
-    warnings.push(...gate.reasons.filter((reason) => reason.startsWith("❌")));
-  }
+//   if (!gate.approved) {
+//     warnings.push(...gate.reasons.filter((reason) => reason.startsWith("❌")));
+//   }
 
   if (gate.warnings.length > 0) {
     warnings.push(...gate.warnings);
   }
 
-  if (typeof candidateScore === "number" && candidateScore < 68) {
-    warnings.push(`⚠️ Telegram Candidate Score is only ${candidateScore}/100`);
-  }
+//   if (typeof candidateScore === "number" && candidateScore < 68) {
+//     warnings.push(`⚠️ Telegram Candidate Score is only ${candidateScore}/100`);
+//   }
 
   if ((product.salesVolume ?? 0) < 100) {
     warnings.push("⚠️ limited social proof");
@@ -391,30 +391,42 @@ export const generateTelegramCaption = (
   affiliateLink: string,
   candidateScore?: number
 ): string => {
-  const price = formatPrice(product);
-  const discount = typeof product.discountPercent === "number" ? `${product.discountPercent.toFixed(0)}% OFF` : "Fresh tech find";
-  const rating = typeof product.rating === "number" ? `⭐ ${product.rating.toFixed(1)}/5` : "⭐ Strong pick";
-  const sales = typeof product.salesVolume === "number" ? `📦 ${product.salesVolume.toLocaleString()} sold` : "📦 Social proof";
-  const scoreLine = typeof candidateScore === "number" ? `🎯 Telegram Candidate Score: ${candidateScore}/100` : "🎯 Telegram Candidate Score: recalculating";
+  // Format price in BRL (R$) if possible
+  const price = typeof product.price === "number" && !isNaN(product.price)
+    ? `R$ ${product.price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "Consulte o preço";
+
+  // Only show discount if > 0
+  let discount = "";
+  if (typeof product.discountPercent === "number" && product.discountPercent > 0) {
+    discount = `🏷️ ${product.discountPercent.toFixed(0)}% OFF`;
+  }
+
+  // Human-friendly rating and sales
+  const rating = typeof product.rating === "number" ? `⭐ ${product.rating.toFixed(1)}/5` : "⭐ Ótima escolha";
+  const sales = typeof product.salesVolume === "number" ? `📦 ${product.salesVolume.toLocaleString()} vendidos` : "📦 Prova social";
+
+  // Remove Telegram Candidate Score from caption
+
   const badgeLine = buildMarketplaceBadges(product)
     .map((badge) => badge.label)
     .slice(0, 3)
     .join(" • ");
-  const title = escapeHtml(product.title || "Untitled product");
+  const title = escapeHtml(product.title || "Produto sem título");
   const link = escapeHtml(affiliateLink);
 
+  // Friendly, inviting intro
   return [
     "🔥 Viral Tech Discovery",
     "",
     `<b>${title}</b>`,
     "",
     `💰 ${price}`,
-    `🏷️ ${discount}`,
+    discount,
     `${rating} • ${sales}`,
-    scoreLine,
     badgeLine ? `✨ ${badgeLine}` : "",
     "",
-    `🔗 <a href=\"${link}\">Open affiliate link</a>`,
+    `🔗 <a href=\"${link}\">Ver oferta no AliExpress</a>`
   ]
     .filter(Boolean)
     .join("\n");

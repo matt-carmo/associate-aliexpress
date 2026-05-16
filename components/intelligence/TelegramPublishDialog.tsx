@@ -12,7 +12,7 @@ import {
   generateTelegramCaption,
 } from "@/lib/intelligence/telegramPublishing";
 
-const DEFAULT_CHAT_ID = "-1002399025968";
+const DEFAULT_CHAT_ID = "-7002399025968";
 
 export const TelegramPublishDialog = ({ product }: { product: DiscoveryProduct }): JSX.Element => {
   const [open, setOpen] = useState(false);
@@ -207,17 +207,17 @@ export const TelegramPublishDialog = ({ product }: { product: DiscoveryProduct }
 
           <div className="space-y-4">
             <div className="rounded-2xl border border-border/70 bg-background p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Publish checks</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Publish tips</p>
               <div className="mt-3 space-y-2 text-sm">
                 {warnings.length > 0 ? (
                   warnings.map((warning) => (
-                    <div key={warning} className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-100">
+                    <div key={warning} className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700">
                       {warning}
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-emerald-100">
-                    No blocking warnings detected.
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-emerald-700">
+                    No issues detected.
                   </div>
                 )}
               </div>
@@ -242,7 +242,7 @@ export const TelegramPublishDialog = ({ product }: { product: DiscoveryProduct }
               type="button"
               className="w-full"
               onClick={handleSend}
-              disabled={status === "sending" || warnings.some((warning) => warning.startsWith("❌"))}
+              disabled={status === "sending"}
             >
               {status === "sending" ? "Sending…" : "Send to Telegram"}
             </Button>

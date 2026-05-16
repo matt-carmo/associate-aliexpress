@@ -16,7 +16,7 @@ export type TelegramGateConfig = {
   minScore: number; // 0-100
   minRating: number; // 0-5
   minCommissionRate: number; // %
-  maxShippingDays: number; // days
+  // maxShippingDays: number; // days
   requireVideo: boolean; // enforce video/high-quality images
 };
 
@@ -34,7 +34,7 @@ export const TELEGRAM_GATE_CONFIG: TelegramGateConfig = {
   minScore: 65, // Top 30-40% of products
   minRating: 4.0,
   minCommissionRate: 8,
-  maxShippingDays: 45,
+  // maxShippingDays: 45,
   requireVideo: false, // Optional but preferred
 };
 
@@ -76,14 +76,14 @@ export const evaluateTelegramGate = (
   }
 
   // Check shipping
-  if ((product.shippingDays ?? 999) > config.maxShippingDays) {
-    reasons.push(
-      `❌ shipping too slow: ${product.shippingDays} days (max: ${config.maxShippingDays})`
-    );
-    approved = false;
-  } else {
-    reasons.push(`✅ fast shipping: ${product.shippingDays} days`);
-  }
+  // if ((product.shippingDays ?? 999) > config.maxShippingDays) {
+  //   reasons.push(
+  //     `❌ shipping too slow: ${product.shippingDays} days (max: ${config.maxShippingDays})`
+  //   );
+  //   approved = false;
+  // } else {
+  //   reasons.push(`✅ fast shipping: ${product.shippingDays} days`);
+  // }
 
   // Check blocked category
   if (isBlockedCategory(product.categoryId)) {
@@ -163,7 +163,7 @@ export const getTelegramGateReport = (
   lines.push(`  • Min score: ${config.minScore}/100`);
   lines.push(`  • Min rating: ${config.minRating}/5`);
   lines.push(`  • Min commission: ${config.minCommissionRate}%`);
-  lines.push(`  • Max shipping: ${config.maxShippingDays} days`);
+  // lines.push(`  • Max shipping: ${config.maxShippingDays} days`);
 
   return lines.join("\n");
 };

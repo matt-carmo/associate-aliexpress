@@ -1,6 +1,5 @@
 import { sendPhoto } from "@/app/services/sendPhoto";
 import { config } from "@/app/config/bot";
-import { evaluateTelegramGate, TELEGRAM_GATE_CONFIG } from "@/lib/intelligence/telegramGate";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -15,21 +14,6 @@ export async function POST(request: Request) {
       { error: "Missing Telegram bot token. Set TELEGRAM_BOT_TOKEN." },
       { status: 503 }
     );
-  }
-
-  // Check quality gate if product data is provided
-  if (product) {
-    const gateResult = evaluateTelegramGate(product, TELEGRAM_GATE_CONFIG);
-    if (!gateResult.approved) {
-      return Response.json(
-        {
-          error: "Product does not meet Telegram quality standards",
-          reasons: gateResult.reasons,
-          warnings: gateResult.warnings,
-        },
-        { status: 400 }
-      );
-    }
   }
 
   try {
