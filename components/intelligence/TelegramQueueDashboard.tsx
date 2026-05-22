@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { buildQualityWarnings, calculateTelegramCandidateScore } from "@/lib/intelligence/queueScoring";
 import type { DiscoveryProduct } from "@/lib/intelligence/discoveryProduct";
 import { clearQueue, enqueue, getQueue, type QueueItem } from "@/lib/queueStorage";
 
@@ -45,12 +44,6 @@ const mapDetailsToProduct = (details: Record<string, any>, fallback: DiscoveryPr
     promoCode: details.promo_code_info?.promo_code || fallback.promoCode,
     isHotProduct: Boolean(details.hot_product_commission_rate) || fallback.isHotProduct,
   };
-};
-
-const isPublishReady = (product: DiscoveryProduct): boolean => {
-  const candidate = calculateTelegramCandidateScore(product);
-  const warnings = buildQualityWarnings(product, candidate.score);
-  return warnings.length === 0 || (warnings.length === 1 && warnings[0] === "No issues detected.");
 };
 
 const formatSchedule = (timestamp?: number): string => {
@@ -161,63 +154,42 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setModalOpen(false);
   };
 
-  const eligibleQueue = useMemo(() => queue.filter((item) => isPublishReady(item.data)), [queue]);
-
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Telegram Queue</CardTitle>
-          <CardDescription>Itens aguardando envio.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p>{queue.length} item(s) na fila</p>
-            <p>{eligibleQueue.length} item(s) prontos para enviar</p>
-            <p>{lastStatus}</p>
-          </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-muted-foreground">
+          {queue.length} item(s) na fila &middot; {lastStatus}
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => {
+            clearQueue();
+            refreshQueue();
+            setLastStatus("Queue cleared.");
+          }}
+          className="gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Clear queue
+        </Button>
+      </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="destructive"
-              onClick={() => {
-                clearQueue();
-                refreshQueue();
-                setLastStatus("Queue cleared.");
-              }}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear queue
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Adicionar produto</CardTitle>
-          <CardDescription>Informe o link do produto.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-2">
-            <label className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Link do produto</label>
-            <Input
-              value={productUrlInput}
-              onChange={(event) => setProductUrlInput(event.target.value)}
-              placeholder="https://pt.aliexpress.com/item/1005001234567890.html"
-            />
-          </div>
-          <Button onClick={handleAddProduct} className="gap-2">
-            Adicionar à fila
-          </Button>
-        </CardContent>
-        {addStatus ? (
-          <CardContent className="pt-0 text-sm text-muted-foreground">
-            {addStatus}
-          </CardContent>
-        ) : null}
-      </Card>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <Input
+            value={productUrlInput}
+            onChange={(event) => setProductUrlInput(event.target.value)}
+            placeholder="Link do produto (ex: https://pt.aliexpress.com/item/1005001234567890.html)"
+          />
+        </div>
+        <Button onClick={handleAddProduct}>
+          Adicionar à fila
+        </Button>
+      </div>
+      {addStatus ? (
+        <p className="text-xs text-muted-foreground">{addStatus}</p>
+      ) : null}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -246,43 +218,29 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         </DialogContent>
       </Dialog>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {queue.map((item) => {
           const product = item.data;
-          const candidate = calculateTelegramCandidateScore(product);
-          const warnings = buildQualityWarnings(product, candidate.score);
-          const ready = warnings.length === 0 || (warnings.length === 1 && warnings[0] === "No issues detected.");
 
           return (
-            <Card key={item.id} className={ready ? "border-emerald-500/40" : "border-amber-500/40"}>
-              <CardHeader>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <CardTitle>{product.title || "Untitled product"}</CardTitle>
-                    <CardDescription>
-                      {ready ? "Ready to publish" : "Needs review before publishing"} • Score {candidate.score}/100
-                    </CardDescription>
-                  </div>
-                </div>
+            <Card key={item.id} className={"border-white/10 bg-white/5"}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  {product.detailUrl ? (
+                    <a href={product.detailUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {product.title || "Untitled product"}
+                    </a>
+                  ) : (
+                    product.title || "Untitled product"
+                  )}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
                 <p>{formatSchedule(item.manualScheduledAt ?? item.scheduledAt)}</p>
-                <p>{product.price ? `Price: R$ ${product.price.toFixed(2)}` : "Price unavailable"}</p>
-                <p>{product.salesVolume ? `Sales: ${product.salesVolume.toLocaleString()}` : "Sales unavailable"}</p>
-                {warnings.length > 0 ? (
-                  <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-amber-700">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <div>
-                      {warnings.map((warning) => (
-                        <p key={warning}>{warning}</p>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-emerald-700">
-                    No issues detected.
-                  </div>
-                )}
+                <p>
+                  {product.price ? `R$ ${product.price.toFixed(2)}` : "Price unavailable"}
+                  {product.salesVolume ? ` - ${product.salesVolume.toLocaleString()} sales` : ""}
+                </p>
               </CardContent>
             </Card>
           );
