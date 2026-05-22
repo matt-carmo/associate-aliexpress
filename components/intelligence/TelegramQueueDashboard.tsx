@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DiscoveryProduct } from "@/lib/intelligence/discoveryProduct";
-import { clearQueue, enqueue, getQueue, removeFromQueue, type QueueItem } from "@/lib/queueStorage";
+import { clearQueue, enqueue, getQueue, removeFromQueue, setQueue as setStoredQueue, type QueueItem } from "@/lib/queueStorage";
 
 const parseNumber = (value?: string | number): number => {
   if (typeof value === "number") return value;
@@ -159,6 +159,9 @@ export const TelegramQueueDashboard = (): JSX.Element => {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [sendingNow, setSendingNow] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
 
   const refreshQueue = () => setQueue(getQueue<DiscoveryProduct>());
 
@@ -350,6 +353,43 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setSendingNow(false);
   };
 
+  const handleRemoveItem = (id: string) => {
+    removeFromQueue(id);
+    refreshQueue();
+    setLastStatus("Item removido da fila.");
+  };
+
+  const handleEditSchedule = (item: QueueItem<DiscoveryProduct>) => {
+    const schedule = item.manualScheduledAt ?? item.scheduledAt;
+    if (schedule) {
+      const date = new Date(schedule);
+      setEditDate(date.toISOString().split("T")[0]);
+      setEditTime(`${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`);
+    } else {
+      setEditDate("");
+      setEditTime("");
+    }
+    setEditingItemId(item.id);
+  };
+
+  const handleSaveSchedule = (item: QueueItem<DiscoveryProduct>) => {
+    const items = getQueue<DiscoveryProduct>();
+    const idx = items.findIndex((i) => i.id === item.id);
+    if (idx === -1) return;
+
+    const dateStr = editDate || new Date().toISOString().split("T")[0];
+    const timeStr = editTime || "12:00";
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const newSchedule = new Date(year, month - 1, day, hours, minutes).getTime();
+
+    items[idx] = { ...items[idx], manualScheduledAt: newSchedule };
+    setStoredQueue(items);
+    refreshQueue();
+    setEditingItemId(null);
+    setLastStatus("Horário atualizado.");
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -504,6 +544,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       <div className="grid gap-3">
         {queue.map((item) => {
           const product = item.data;
+          const isEditing = editingItemId === item.id;
 
 return (
   <Card key={item.id} className="border-white/10 bg-white/5">
@@ -535,18 +576,65 @@ return (
         </CardHeader>
 
         <CardContent className="p-0 space-y-1 text-sm text-muted-foreground">
-          <p>{formatSchedule(item.manualScheduledAt ?? item.scheduledAt)}</p>
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="h-8 text-xs"
+              />
+              <Input
+                type="time"
+                value={editTime}
+                onChange={(e) => setEditTime(e.target.value)}
+                className="h-8 text-xs"
+              />
+              <Button size="sm" onClick={() => handleSaveSchedule(item)}>
+                Salvar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditingItemId(null)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <p>{formatSchedule(item.manualScheduledAt ?? item.scheduledAt)}</p>
+                <button
+                  onClick={() => handleEditSchedule(item)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+              <p>
+                {product.price
+                  ? `R$ ${product.price.toFixed(2)}`
+                  : "Price unavailable"}
 
-          <p>
-            {product.price
-              ? `R$ ${product.price.toFixed(2)}`
-              : "Price unavailable"}
-
-            {product.salesVolume
-              ? ` - ${product.salesVolume.toLocaleString()} sales`
-              : ""}
-          </p>
+                {product.salesVolume
+                  ? ` - ${product.salesVolume.toLocaleString()} sales`
+                  : ""}
+              </p>
+            </>
+          )}
         </CardContent>
+
+        <div className="flex gap-2 mt-2">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleRemoveItem(item.id)}
+          >
+            <Trash2 className="h-3 w-3 mr-1" />
+            Remover
+          </Button>
+        </div>
       </div>
     </div>
   </Card>
