@@ -3,7 +3,7 @@ import { config } from "@/app/config/bot";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { chatId, photoUrl, caption, product } = body ?? {};
+  const { chatId, photoUrl, caption } = body ?? {};
 
   if (!chatId || !photoUrl) {
     return Response.json({ error: "chatId and photoUrl are required" }, { status: 400 });

@@ -1,13 +1,13 @@
 import crypto from 'crypto';
 
-export const signRequest = (parameters: {[key: string]: any}, appSecret: string) => {
-    const sortObject = (obj:{[key: string]: any}) => {
+export const signRequest = (parameters: Record<string, string>, appSecret: string) => {
+    const sortObject = (obj: Record<string, string>): Record<string, string> => {
       return Object.keys(obj)
         .sort()
-        .reduce((result:{[key: string]: any}, key:string) => {
+        .reduce((result: Record<string, string>, key: string) => {
           result[key] = obj[key];
           return result;
-        }, {});
+        }, {} as Record<string, string>);
     };
     const sortedParams = sortObject(parameters);
     const sortedString = Object.keys(sortedParams).reduce((acc, key) => {

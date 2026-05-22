@@ -6,12 +6,6 @@ import {
   getHotProducts,
   getProducts,
   getProductsInfo,
-  getProductsRanked,
-  getProductsStrict,
-  getHotProductsRanked,
-  getHotProductsStrict,
-  getFeaturedProductsRanked,
-  getFeaturedProductsStrict,
 } from "@/lib/services";
 
 // Helper: parse pages param like "1-5" or "1,2,3"
@@ -49,6 +43,7 @@ export async function GET(request: Request) {
         // Cap pages to avoid runaway requests
         const cap = Math.min(100, pages.length);
         const pagesToFetch = pages.slice(0, cap);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let aggregated: any[] = [];
 
         for (const pno of pagesToFetch) {
@@ -58,6 +53,7 @@ export async function GET(request: Request) {
             page_no: Number(pno),
             sort: searchParams.get("sort") || "",
           });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const arr = Array.isArray(raw) ? raw : raw?.product ?? raw?.products ?? [];
           aggregated = aggregated.concat(arr);
         }
@@ -82,6 +78,7 @@ export async function GET(request: Request) {
       if (pages.length > 0) {
         const cap = Math.min(100, pages.length);
         const pagesToFetch = pages.slice(0, cap);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let aggregated: any[] = [];
 
         for (const pno of pagesToFetch) {
@@ -91,6 +88,7 @@ export async function GET(request: Request) {
             page_no: Number(pno),
             sort: searchParams.get("sort") || "",
           });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const arr = Array.isArray(raw) ? raw : raw?.product ?? raw?.products ?? [];
           aggregated = aggregated.concat(arr);
         }
@@ -115,16 +113,17 @@ export async function GET(request: Request) {
       if (pages.length > 0) {
         const cap = Math.min(100, pages.length);
         const pagesToFetch = pages.slice(0, cap);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let aggregated: any[] = [];
 
         for (const pno of pagesToFetch) {
           const raw = await getFeaturedProducts({
             category_id: searchParams.get("category_id") || "",
-            keywords: searchParams.get("keywords") || "",
             promotion_name: searchParams.get("promotion_name") || "",
             page_no: Number(pno),
             sort: searchParams.get("sort") || "",
           });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const arr = Array.isArray(raw) ? raw : raw?.product ?? raw?.products ?? [];
           aggregated = aggregated.concat(arr);
         }
@@ -134,7 +133,6 @@ export async function GET(request: Request) {
 
       const products = await getFeaturedProducts({
         category_id: searchParams.get("category_id") || "",
-        keywords: searchParams.get("keywords") || "",
         promotion_name: searchParams.get("promotion_name") || "",
         page_no: Number(searchParams.get("page_no") || "1"),
         sort: searchParams.get("sort") || "",
@@ -178,7 +176,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   } catch (error) {
-    console.error("AliExpress API error:", error);
-    return NextResponse.json({ error: "AliExpress request failed" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "AliExpress request failed";
+    console.error("AliExpress API error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

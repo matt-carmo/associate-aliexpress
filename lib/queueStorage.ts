@@ -11,6 +11,7 @@ export type QueueItem<T = unknown> = {
   manualScheduledAt?: number;
   status?: QueueStatus;
   priority?: number;
+  caption?: string;
 };
 
 const QUEUE_KEY = "telegram_post_queue_v1";
