@@ -1,29 +1,73 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Clock3, Play, Square, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { buildQualityWarnings, calculateTelegramCandidateScore, generateTelegramCaption } from "@/lib/intelligence/telegramPublishing";
-import type { DiscoveryProduct } from "@/lib/intelligence/marketplaceDiscovery";
-import { clearQueue, getQueue, removeFromQueue, type QueueItem } from "@/lib/queueStorage";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { buildQualityWarnings, calculateTelegramCandidateScore } from "@/lib/intelligence/queueScoring";
+import type { DiscoveryProduct } from "@/lib/intelligence/discoveryProduct";
+import { clearQueue, enqueue, getQueue, type QueueItem } from "@/lib/queueStorage";
 
-const DEFAULT_CHAT_ID = -1002399025968;
-const FIVE_MINUTES = 0.10 * 60 * 1000;
+const parseNumber = (value?: string | number): number => {
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+  const cleaned = String(value).replace(/[^\d.]/g, "");
+  return Number.parseFloat(cleaned) || 0;
+};
+
+const mapDetailsToProduct = (details: Record<string, any>, fallback: DiscoveryProduct): DiscoveryProduct => {
+  const ratingRaw = parseNumber(details.evaluate_rate);
+  const rating = ratingRaw > 5 ? ratingRaw / 20 : ratingRaw;
+  const price =
+    parseNumber(details.target_sale_price) ||
+    parseNumber(details.sale_price) ||
+    parseNumber(details.app_sale_price);
+
+  return {
+    ...fallback,
+    productId: details.product_id ?? fallback.productId,
+    title: details.product_title || fallback.title,
+    imageUrl: details.product_main_image_url || fallback.imageUrl,
+    detailUrl: details.product_detail_url || fallback.detailUrl,
+    categoryId: details.second_level_category_id || details.first_level_category_id || fallback.categoryId,
+    categoryName: details.second_level_category_name || details.first_level_category_name || fallback.categoryName,
+    shopId: details.shop_id || fallback.shopId,
+    price: price || fallback.price,
+    originalPrice: parseNumber(details.target_original_price) || parseNumber(details.original_price) || fallback.originalPrice,
+    discountPercent: parseNumber(details.discount) || fallback.discountPercent,
+    rating: rating || fallback.rating,
+    salesVolume: details.lastest_volume ?? fallback.salesVolume,
+    commissionRate: parseNumber(details.commission_rate) || fallback.commissionRate,
+    shippingDays: parseNumber(details.ship_to_days) || fallback.shippingDays,
+    hasVideo: Boolean(details.product_video_url) || fallback.hasVideo,
+    promoCode: details.promo_code_info?.promo_code || fallback.promoCode,
+    isHotProduct: Boolean(details.hot_product_commission_rate) || fallback.isHotProduct,
+  };
+};
 
 const isPublishReady = (product: DiscoveryProduct): boolean => {
   const candidate = calculateTelegramCandidateScore(product);
   const warnings = buildQualityWarnings(product, candidate.score);
-
   return warnings.length === 0 || (warnings.length === 1 && warnings[0] === "No issues detected.");
+};
+
+const formatSchedule = (timestamp?: number): string => {
+  if (!timestamp) return "Schedule: not set";
+  const date = new Date(timestamp);
+  return `Schedule: ${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 };
 
 export const TelegramQueueDashboard = (): JSX.Element => {
   const [queue, setQueue] = useState<QueueItem<DiscoveryProduct>[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
   const [lastStatus, setLastStatus] = useState("Queue ready.");
-  const [lastPostedId, setLastPostedId] = useState<string | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const [productUrlInput, setProductUrlInput] = useState("");
+  const [addStatus, setAddStatus] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalProductUrl, setModalProductUrl] = useState("");
+  const [modalPreview, setModalPreview] = useState<DiscoveryProduct | null>(null);
+  const [modalStatus, setModalStatus] = useState("");
 
   const refreshQueue = () => setQueue(getQueue<DiscoveryProduct>());
 
@@ -35,99 +79,86 @@ export const TelegramQueueDashboard = (): JSX.Element => {
 
     return () => {
       window.removeEventListener("storage", onStorage);
-
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     };
   }, []);
 
-  const publishNext = async () => {
-    const currentQueue = getQueue<DiscoveryProduct>();
-    const nextItem = currentQueue.find((item) => isPublishReady(item.data));
+  const extractProductId = (url: string): string => {
+    const patterns = [/\/item\/(\d+)\.html/i, /product\/(\d+)\.html/i, /\/i\/(\d+)\.html/i];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+    const fallbackMatch = url.match(/(\d{8,})/);
+    return fallbackMatch?.[1] || "";
+  };
 
-    if (!nextItem) {
-      setLastStatus("No eligible products in queue.");
-      setIsRunning(false);
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+  const handleAddProduct = async () => {
+    const rawUrl = productUrlInput.trim();
+    if (!rawUrl) {
+      setAddStatus("Informe o link do produto.");
       return;
     }
 
-    const product = nextItem.data;
-    const candidate = calculateTelegramCandidateScore(product);
-    let affiliateLink = product.detailUrl || "";
+    setModalOpen(true);
+    setModalProductUrl(rawUrl);
+    setModalPreview(null);
+    setModalStatus("Buscando detalhes do produto...");
 
     try {
-      if (affiliateLink) {
-        const linkResponse = await fetch(
-          `/api/aliexpress?type=affiliate-link&product_detail_url=${encodeURIComponent(affiliateLink)}`
-        );
-        if (linkResponse.ok) {
-          const payload = await linkResponse.json();
-          if (payload.promotionLink) {
-            affiliateLink = payload.promotionLink;
-          }
-        }
+      const productId = extractProductId(rawUrl);
+      if (!productId) {
+        setModalStatus("Sem product_id. Use um link de produto válido.");
+        return;
       }
-    } catch (err) {
-      console.error("Failed to fetch affiliate link for queue item", err);
-    }
 
-    const caption = generateTelegramCaption(product, affiliateLink, candidate.score);
-
-    try {
-      const response = await fetch("/api/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chatId: DEFAULT_CHAT_ID,
-          photoUrl: product.imageUrl || "",
-          caption,
-          product,
-        }),
-      });
+      const response = await fetch(
+        `/api/aliexpress?type=product-details&product_id=${encodeURIComponent(productId)}`
+      );
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Failed to send queued post");
+        throw new Error(payload.error || "Falha ao carregar detalhes do produto");
       }
 
-      removeFromQueue(nextItem.id);
-      setQueue(getQueue<DiscoveryProduct>());
-      setLastPostedId(nextItem.id);
-      setLastStatus(`Posted ${product.title || "product"} successfully.`);
+      const payload = await response.json();
+      if (!payload.product) {
+        throw new Error("Produto não encontrado");
+      }
+
+      const hydrated = mapDetailsToProduct(payload.product, {
+        productId,
+        title: "Produto sem título",
+        imageUrl: "",
+        detailUrl: rawUrl,
+      });
+      setModalPreview(hydrated);
+      setModalStatus("Detalhes carregados.");
     } catch (error) {
-      setLastStatus(error instanceof Error ? error.message : "Failed to publish queued item.");
+      setModalStatus(error instanceof Error ? error.message : "Falha ao carregar detalhes");
     }
   };
 
-  const handleStart = () => {
-    if (intervalRef.current) {
-      return;
-    }
+  const handleConfirmAdd = () => {
+    const productId = extractProductId(modalProductUrl);
+    const baseProduct: DiscoveryProduct = {
+      productId: productId || modalProductUrl,
+      title: modalPreview?.title || "Produto sem título",
+      imageUrl: modalPreview?.imageUrl || "",
+      detailUrl: modalProductUrl,
+    };
 
-    setIsRunning(true);
-    setLastStatus("Scheduler started. One item will be posted every 5 minutes.");
+    const hydrated = modalPreview ? { ...modalPreview, ...baseProduct } : baseProduct;
+    const queueId = `${productId || modalProductUrl}-${Date.now()}`;
 
-    intervalRef.current = window.setInterval(() => {
-      void publishNext();
-    }, FIVE_MINUTES);
-  };
+    enqueue({
+      id: queueId,
+      data: hydrated,
+    });
 
-  const handleStop = () => {
-    setIsRunning(false);
-    setLastStatus("Scheduler stopped.");
-
-    if (intervalRef.current) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    refreshQueue();
+    setProductUrlInput("");
+    setAddStatus("Produto adicionado à fila.");
+    setModalOpen(false);
   };
 
   const eligibleQueue = useMemo(() => queue.filter((item) => isPublishReady(item.data)), [queue]);
@@ -137,33 +168,16 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       <Card>
         <CardHeader>
           <CardTitle>Telegram Queue</CardTitle>
-          <CardDescription>View items waiting to be posted and start the 5-minute publishing scheduler.</CardDescription>
+          <CardDescription>Itens aguardando envio.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p>{queue.length} item(s) in queue</p>
-            <p>{eligibleQueue.length} item(s) ready to publish</p>
+            <p>{queue.length} item(s) na fila</p>
+            <p>{eligibleQueue.length} item(s) prontos para enviar</p>
             <p>{lastStatus}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {!isRunning ? (
-              <Button onClick={handleStart} className="gap-2">
-                <Play className="h-4 w-4" />
-                Start posting
-              </Button>
-            ) : (
-              <Button variant="secondary" onClick={handleStop} className="gap-2">
-                <Square className="h-4 w-4" />
-                Stop scheduler
-              </Button>
-            )}
-
-            <Button variant="outline" onClick={refreshQueue} className="gap-2">
-              <Clock3 className="h-4 w-4" />
-              Refresh queue
-            </Button>
-
             <Button
               variant="destructive"
               onClick={() => {
@@ -179,6 +193,58 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Adicionar produto</CardTitle>
+          <CardDescription>Informe o link do produto.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
+            <label className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Link do produto</label>
+            <Input
+              value={productUrlInput}
+              onChange={(event) => setProductUrlInput(event.target.value)}
+              placeholder="https://pt.aliexpress.com/item/1005001234567890.html"
+            />
+          </div>
+          <Button onClick={handleAddProduct} className="gap-2">
+            Adicionar à fila
+          </Button>
+        </CardContent>
+        {addStatus ? (
+          <CardContent className="pt-0 text-sm text-muted-foreground">
+            {addStatus}
+          </CardContent>
+        ) : null}
+      </Card>
+
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar item da fila</DialogTitle>
+            <DialogDescription>Confira o link do produto antes de adicionar.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <label className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Link do produto</label>
+            <Input value={modalProductUrl} onChange={(event) => setModalProductUrl(event.target.value)} />
+            <p className="text-xs text-muted-foreground">{modalStatus || "Pronto"}</p>
+            {modalPreview?.imageUrl ? (
+              <img
+                src={modalPreview.imageUrl}
+                alt={modalPreview.title || "Produto"}
+                className="h-48 w-full rounded-lg object-cover"
+              />
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmAdd}>Adicionar à fila</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4">
         {queue.map((item) => {
@@ -197,14 +263,10 @@ export const TelegramQueueDashboard = (): JSX.Element => {
                       {ready ? "Ready to publish" : "Needs review before publishing"} • Score {candidate.score}/100
                     </CardDescription>
                   </div>
-                  {lastPostedId === item.id ? (
-                    <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600">
-                      Last posted
-                    </span>
-                  ) : null}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>{formatSchedule(item.manualScheduledAt ?? item.scheduledAt)}</p>
                 <p>{product.price ? `Price: R$ ${product.price.toFixed(2)}` : "Price unavailable"}</p>
                 <p>{product.salesVolume ? `Sales: ${product.salesVolume.toLocaleString()}` : "Sales unavailable"}</p>
                 {warnings.length > 0 ? (
@@ -229,7 +291,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         {queue.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">
-              Your queue is empty. Add eligible products and start the scheduler when ready.
+              Your queue is empty. Add eligible products to start.
             </CardContent>
           </Card>
         ) : null}
@@ -237,3 +299,5 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     </div>
   );
 };
+
+export default TelegramQueueDashboard;

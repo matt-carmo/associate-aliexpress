@@ -1,6 +1,3 @@
-'use client'
-import FilterProvider from "@/hooks/filters";
-
 export default function RootLayout({
   children,
 }: {
@@ -8,7 +5,7 @@ export default function RootLayout({
 }) {
   return (
     <section className="w-full">
-      <FilterProvider>{children}</FilterProvider>
+      {children}
     </section>
   );
 }

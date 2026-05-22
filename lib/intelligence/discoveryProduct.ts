@@ -1,0 +1,19 @@
+export type DiscoveryProduct = {
+  productId: number | string;
+  title: string;
+  imageUrl: string;
+  detailUrl?: string;
+  categoryId?: number | string;
+  categoryName?: string;
+  shopId?: number | string;
+  price?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  rating?: number;
+  salesVolume?: number;
+  commissionRate?: number;
+  shippingDays?: number;
+  promoCode?: string;
+  isHotProduct?: boolean;
+  hasVideo?: boolean;
+};

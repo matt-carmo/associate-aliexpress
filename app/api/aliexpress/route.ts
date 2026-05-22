@@ -5,6 +5,7 @@ import {
   getFeaturedProducts,
   getHotProducts,
   getProducts,
+  getProductsInfo,
   getProductsRanked,
   getProductsStrict,
   getHotProductsRanked,
@@ -12,7 +13,6 @@ import {
   getFeaturedProductsRanked,
   getFeaturedProductsStrict,
 } from "@/lib/services";
-import { rankProductsQuick, rankProductsStrict } from "@/lib/intelligence/rankingPipeline";
 
 // Helper: parse pages param like "1-5" or "1,2,3"
 const parsePagesParam = (val: string | null): number[] => {
@@ -33,9 +33,6 @@ const parsePagesParam = (val: string | null): number[] => {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
-  const ranked = searchParams.get("ranked") === "true"; // Query param to enable ranking
-  const strict = searchParams.get("strict") === "true"; // optional strict mode -> use strict ranking
-
   if (!process.env.ALIEXPRESS_APP_KEY || !process.env.ALIEXPRESS_APP_SECRET) {
     return NextResponse.json(
       { error: "Missing AliExpress credentials. Set ALIEXPRESS_APP_KEY and ALIEXPRESS_APP_SECRET." },
@@ -65,30 +62,15 @@ export async function GET(request: Request) {
           aggregated = aggregated.concat(arr);
         }
 
-        const results = ranked ? (strict ? rankProductsStrict(aggregated, 200) : rankProductsQuick(aggregated, 200)) : aggregated;
-        return NextResponse.json(results);
+        return NextResponse.json(aggregated);
       }
 
-      const products = ranked
-        ? strict
-          ? await getProductsStrict({
-              category_ids: searchParams.get("category_ids") || "",
-              keywords: searchParams.get("keywords") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-          : await getProductsRanked({
-              category_ids: searchParams.get("category_ids") || "",
-              keywords: searchParams.get("keywords") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-        : await getProducts({
-            category_ids: searchParams.get("category_ids") || "",
-            keywords: searchParams.get("keywords") || "",
-            page_no: Number(searchParams.get("page_no") || "1"),
-            sort: searchParams.get("sort") || "",
-          });
+      const products = await getProducts({
+        category_ids: searchParams.get("category_ids") || "",
+        keywords: searchParams.get("keywords") || "",
+        page_no: Number(searchParams.get("page_no") || "1"),
+        sort: searchParams.get("sort") || "",
+      });
 
       return NextResponse.json(products);
     }
@@ -113,30 +95,15 @@ export async function GET(request: Request) {
           aggregated = aggregated.concat(arr);
         }
 
-        const results = ranked ? (strict ? rankProductsStrict(aggregated, 200) : rankProductsQuick(aggregated, 200)) : aggregated;
-        return NextResponse.json(results);
+        return NextResponse.json(aggregated);
       }
 
-      const products = ranked
-        ? strict
-          ? await getHotProductsStrict({
-              category_ids: searchParams.get("category_ids") || "",
-              keywords: searchParams.get("keywords") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-          : await getHotProductsRanked({
-              category_ids: searchParams.get("category_ids") || "",
-              keywords: searchParams.get("keywords") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-        : await getHotProducts({
-            category_ids: searchParams.get("category_ids") || "",
-            keywords: searchParams.get("keywords") || "",
-            page_no: Number(searchParams.get("page_no") || "1"),
-            sort: searchParams.get("sort") || "",
-          });
+      const products = await getHotProducts({
+        category_ids: searchParams.get("category_ids") || "",
+        keywords: searchParams.get("keywords") || "",
+        page_no: Number(searchParams.get("page_no") || "1"),
+        sort: searchParams.get("sort") || "",
+      });
 
       return NextResponse.json(products);
     }
@@ -162,33 +129,16 @@ export async function GET(request: Request) {
           aggregated = aggregated.concat(arr);
         }
 
-        const results = ranked ? (strict ? rankProductsStrict(aggregated, 200) : rankProductsQuick(aggregated, 200)) : aggregated;
-        return NextResponse.json(results);
+        return NextResponse.json(aggregated);
       }
 
-      const products = ranked
-        ? strict
-          ? await getFeaturedProductsStrict({
-              category_id: searchParams.get("category_id") || "",
-              keywords: searchParams.get("keywords") || "",
-              promotion_name: searchParams.get("promotion_name") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-          : await getFeaturedProductsRanked({
-              category_id: searchParams.get("category_id") || "",
-              keywords: searchParams.get("keywords") || "",
-              promotion_name: searchParams.get("promotion_name") || "",
-              page_no: Number(searchParams.get("page_no") || "1"),
-              sort: searchParams.get("sort") || "",
-            })
-        : await getFeaturedProducts({
-            category_id: searchParams.get("category_id") || "",
-            keywords: searchParams.get("keywords") || "",
-            promotion_name: searchParams.get("promotion_name") || "",
-            page_no: Number(searchParams.get("page_no") || "1"),
-            sort: searchParams.get("sort") || "",
-          });
+      const products = await getFeaturedProducts({
+        category_id: searchParams.get("category_id") || "",
+        keywords: searchParams.get("keywords") || "",
+        promotion_name: searchParams.get("promotion_name") || "",
+        page_no: Number(searchParams.get("page_no") || "1"),
+        sort: searchParams.get("sort") || "",
+      });
 
       return NextResponse.json(products);
     }
@@ -207,6 +157,23 @@ export async function GET(request: Request) {
 
       const promotionLink = await generateAffiliateLink({ product_detail_url: productDetailUrl });
       return NextResponse.json({ promotionLink });
+    }
+
+    if (type === "product-details") {
+      const productId = searchParams.get("product_id") || "";
+
+      if (!productId) {
+        return NextResponse.json({ error: "product_id is required" }, { status: 400 });
+      }
+
+      const products = await getProductsInfo({ product_ids: productId });
+      const product = Array.isArray(products) ? products[0] : products;
+
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ product });
     }
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });

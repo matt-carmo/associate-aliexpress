@@ -58,6 +58,17 @@ const getQueueId = (product: DiscoveryProduct): string => {
   return String(product.productId || product.detailUrl || product.title || product.categoryName || "unknown-product");
 };
 
+const findFirstProductId = (products: DiscoveryProduct[]): number => {
+  for (const product of products) {
+    const value = typeof product.productId === "string" ? Number.parseInt(product.productId, 10) : product.productId;
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      return value;
+    }
+  }
+
+  return 0;
+};
+
 export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Element => {
   const modeConfig = DISCOVERY_MODE_CONFIG[mode];
   const sources = useMemo(() => getDiscoverySourcesForMode(mode), [mode]);
@@ -219,19 +230,32 @@ export const MarketplaceDiscovery = ({ mode }: { mode: DiscoveryMode }): JSX.Ele
         const id = getQueueId(product);
         const candidate = calculateTelegramCandidateScore(product);
         const caption = generateTelegramCaption(product, product.detailUrl || "", candidate.score);
+        const productId =
+          typeof product.productId === "string" ? Number.parseInt(product.productId, 10) : product.productId;
 
         return {
           id,
+          manualScheduledAt: undefined,
+          scheduledAt: undefined,
+          status: "pending" as const,
           data: {
             ...product,
             queuedCaption: caption,
             queuedFromMode: mode,
+            productId: productId || product.productId,
           },
         };
       });
 
+    const hasAnyProductId = findFirstProductId(queueReadyProducts) !== 0;
+
     if (queueItems.length === 0) {
       setQueueMessage("Nenhum produto elegível para queue nesta tela.");
+      return;
+    }
+
+    if (!hasAnyProductId) {
+      setQueueMessage("Nenhum produto com product_id válido foi encontrado para adicionar à queue.");
       return;
     }
 
