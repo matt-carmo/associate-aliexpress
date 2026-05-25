@@ -60,12 +60,40 @@ const CHAT_ID = -1002399025968;
 
 const sendNow = async (imageUrl: string, caption: string): Promise<boolean> => {
   try {
-    const response = await fetch("/api/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId: CHAT_ID, photoUrl: imageUrl, caption }),
-    });
-    return response.ok;
+    const requests: Promise<Response>[] = [];
+
+    requests.push(
+      fetch("/api/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: CHAT_ID, photoUrl: imageUrl, caption }),
+      })
+    );
+
+    const whatsappTarget =
+      typeof window === "undefined"
+        ? null
+        : localStorage.getItem("whatsapp_target");
+
+    if (whatsappTarget) {
+      requests.push(
+        fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: whatsappTarget,
+            imageUrl,
+            caption,
+          }),
+        })
+      );
+    }
+
+    const results = await Promise.allSettled(requests);
+
+    return results.every(
+      (result) => result.status === "fulfilled" && result.value.ok
+    );
   } catch {
     return false;
   }

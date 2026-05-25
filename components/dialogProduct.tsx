@@ -79,31 +79,46 @@ ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_i
               <p>...</p>
             )}
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button
               onClick={async () => {
                 setSending('Enviando');
-                try {
-                  const response = await fetch("/api/send", {
+                const promises: Promise<void>[] = [];
+
+                promises.push(
+                  fetch("/api/send", {
                     method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       chatId: -1002399025968,
                       photoUrl: product.product_main_image_url,
                       caption: textArea,
                     }),
-                  });
+                  }).then((r) => {
+                    if (!r.ok) throw new Error();
+                  })
+                );
 
-                  if (!response.ok) {
-                    throw new Error("Failed to send photo");
-                  }
-
-                  setSending('Enviado');
-                } catch {
-                  setSending('Erro');
+                const whatsappTarget = localStorage.getItem("whatsapp_target");
+                if (whatsappTarget) {
+                  promises.push(
+                    fetch("/api/whatsapp/send", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        to: whatsappTarget,
+                        imageUrl: product.product_main_image_url,
+                        caption: textArea,
+                      }),
+                    }).then((r) => {
+                      if (!r.ok) throw new Error();
+                    })
+                  );
                 }
+
+                const results = await Promise.allSettled(promises);
+                const ok = results.some((r) => r.status === "fulfilled");
+                setSending(ok ? "Enviado" : "Erro");
               }}
             >
               {sending}
