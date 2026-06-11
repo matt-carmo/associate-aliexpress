@@ -1,0 +1,336 @@
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Socket/chats.js b/node_modules/@whiskeysockets/baileys/lib/Socket/chats.js
+index 9a7947f..8aabfd5 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Socket/chats.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Socket/chats.js
+@@ -12,7 +12,7 @@ import { getBinaryNodeChild, getBinaryNodeChildren, isHostedLidUser, isHostedPnU
+ import { USyncQuery, USyncUser } from '../WAUSync/index.js';
+ import { makeSocket } from './socket.js';
+ export const makeChatsSocket = (config) => {
+-    const { logger, markOnlineOnConnect, fireInitQueries, appStateMacVerification, shouldIgnoreJid, shouldSyncHistoryMessage, getMessage } = config;
++    const { logger, markOnlineOnConnect, fireInitQueries, appStateMacVerification, shouldIgnoreJid, shouldSyncHistoryMessage, getMessage, imageProcessor } = config;
+     const sock = makeSocket(config);
+     const { ev, ws, authState, generateMessageTag, sendNode, query, signalRepository, onUnexpectedError, sendUnifiedSession, registerSocketEndHandler } = sock;
+     const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping);
+@@ -199,7 +199,7 @@ export const makeChatsSocket = (config) => {
+         else {
+             targetJid = undefined;
+         }
+-        const { img } = await generateProfilePicture(content, dimensions);
++        const { img } = await generateProfilePicture(content, dimensions, imageProcessor);
+         await query({
+             tag: 'iq',
+             attrs: {
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
+index d61e064..87ea11f 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Socket/messages-send.js
+@@ -11,7 +11,7 @@ import { areJidsSameUser, getBinaryNodeChild, getBinaryNodeChildren, isHostedLid
+ import { USyncQuery, USyncUser } from '../WAUSync/index.js';
+ import { makeNewsletterSocket } from './newsletter.js';
+ export const makeMessagesSocket = (config) => {
+-    const { logger, linkPreviewImageThumbnailWidth, generateHighQualityLinkPreview, options: httpRequestOptions, patchMessageBeforeSending, cachedGroupMetadata, enableRecentMessageCache, maxMsgRetryCount } = config;
++    const { logger, linkPreviewImageThumbnailWidth, generateHighQualityLinkPreview, options: httpRequestOptions, patchMessageBeforeSending, cachedGroupMetadata, enableRecentMessageCache, maxMsgRetryCount, imageProcessor } = config;
+     const sock = makeNewsletterSocket(config);
+     const { ev, authState, messageMutex, signalRepository, upsertMessage, query, fetchPrivacySettings, sendNode, groupMetadata, groupToggleEphemeral, registerSocketEndHandler } = sock;
+     const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping);
+@@ -1075,7 +1075,8 @@ export const makeMessagesSocket = (config) => {
+                             ...(httpRequestOptions || {})
+                         },
+                         logger,
+-                        uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined
++                        uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined,
++                        imageProcessor
+                     }),
+                     //TODO: CACHE
+                     getProfilePicUrl: sock.profilePictureUrl,
+@@ -1084,6 +1085,7 @@ export const makeMessagesSocket = (config) => {
+                     mediaCache: config.mediaCache,
+                     options: config.options,
+                     messageId: generateMessageIDV2(sock.user?.id),
++                    imageProcessor,
+                     ...options
+                 });
+                 const isEventMsg = 'event' in content && !!content.event;
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Socket/newsletter.js b/node_modules/@whiskeysockets/baileys/lib/Socket/newsletter.js
+index 95f575e..52cb4e3 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Socket/newsletter.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Socket/newsletter.js
+@@ -97,7 +97,7 @@ export const makeNewsletterSocket = (config) => {
+             return await newsletterUpdate(jid, { description });
+         },
+         newsletterUpdatePicture: async (jid, content) => {
+-            const { img } = await generateProfilePicture(content);
++            const { img } = await generateProfilePicture(content, undefined, config.imageProcessor);
+             return await newsletterUpdate(jid, { picture: img.toString('base64') });
+         },
+         newsletterRemovePicture: async (jid) => {
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Types/Message.d.ts b/node_modules/@whiskeysockets/baileys/lib/Types/Message.d.ts
+index 0004fb6..f4546b8 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Types/Message.d.ts
++++ b/node_modules/@whiskeysockets/baileys/lib/Types/Message.d.ts
+@@ -5,6 +5,7 @@ import type { MediaType } from '../Defaults/index.js';
+ import type { BinaryNode } from '../WABinary/index.js';
+ import type { GroupMetadata } from './GroupMetadata.js';
+ import type { CacheStore } from './Socket.js';
++import type { BaileysImageProcessor } from './index.js';
+ export { proto as WAProto };
+ export type WAMessage = proto.IWebMessageInfo & {
+     key: WAMessageKey;
+@@ -281,6 +282,8 @@ export type MediaGenerationOptions = {
+     options?: RequestInit;
+     backgroundColor?: string;
+     font?: number;
++    /** Optional image processor for thumbnail/profile picture generation */
++    imageProcessor?: BaileysImageProcessor;
+ };
+ export type MessageContentGenerationOptions = MediaGenerationOptions & {
+     getUrlInfo?: (text: string) => Promise<WAUrlInfo | undefined>;
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Types/Socket.d.ts b/node_modules/@whiskeysockets/baileys/lib/Types/Socket.d.ts
+index f9623cb..c4512c2 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Types/Socket.d.ts
++++ b/node_modules/@whiskeysockets/baileys/lib/Types/Socket.d.ts
+@@ -6,6 +6,7 @@ import type { AuthenticationState, LIDMapping, SignalAuthState, TransactionCapab
+ import type { GroupMetadata } from './GroupMetadata.js';
+ import { type MediaConnInfo, type WAMessageKey } from './Message.js';
+ import type { SignalRepositoryWithLIDStore } from './Signal.js';
++import type { BaileysImageProcessor } from './index.js';
+ export type WAVersion = [number, number, number];
+ export type WABrowserDescription = [string, string, string];
+ export type CacheStore = {
+@@ -123,6 +124,13 @@ export type SocketConfig = {
+     };
+     /** options for HTTP fetch requests */
+     options: RequestInit;
++    /**
++     * Optional image processor for generating thumbnails and profile pictures.
++     * When provided, Baileys will use this instead of auto-importing sharp/jimp.
++     * If not provided and an image operation is required, Baileys falls back to
++     * auto-importing sharp/jimp (with a deprecation warning).
++     */
++    imageProcessor?: BaileysImageProcessor;
+     /**
+      * fetch a message from your store
+      * implement this so that messages failed to send
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Types/index.d.ts b/node_modules/@whiskeysockets/baileys/lib/Types/index.d.ts
+index fef6a2b..a55eb96 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Types/index.d.ts
++++ b/node_modules/@whiskeysockets/baileys/lib/Types/index.d.ts
+@@ -10,8 +10,28 @@ export * from './Product.js';
+ export * from './Call.js';
+ export * from './Signal.js';
+ export * from './Mex.js';
++import type { Readable } from 'stream';
+ import type { AuthenticationState } from './Auth.js';
+ import type { SocketConfig } from './Socket.js';
++export type BaileysImageProcessor = {
++    makeImageThumbnail(input: Buffer | string | Readable, options?: {
++        width?: number;
++        quality?: number;
++    }): Promise<{
++        jpeg: Buffer;
++        original?: {
++            width?: number;
++            height?: number;
++        };
++    }>;
++    makeProfilePicture(input: Buffer | string | Readable, options?: {
++        width?: number;
++        height?: number;
++        quality?: number;
++    }): Promise<{
++        jpeg: Buffer;
++    }>;
++};
+ export type UserFacingSocketConfig = Partial<SocketConfig> & {
+     auth: AuthenticationState;
+ };
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.d.ts b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.d.ts
+index cd2a248..3be4383 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.d.ts
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.d.ts
+@@ -1,4 +1,4 @@
+-import type { WAMediaUploadFunction, WAUrlInfo } from '../Types/index.js';
++import type { WAMediaUploadFunction, WAUrlInfo, BaileysImageProcessor } from '../Types/index.js';
+ import type { ILogger } from './logger.js';
+ export type URLGenerationOptions = {
+     thumbnailWidth: number;
+@@ -10,6 +10,7 @@ export type URLGenerationOptions = {
+     };
+     uploadImage?: WAMediaUploadFunction;
+     logger?: ILogger;
++    imageProcessor?: BaileysImageProcessor;
+ };
+ /**
+  * Given a piece of text, checks for any URL present, generates link preview for the same and returns it
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
+index 0f4ff1c..9175c7d 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
+@@ -2,9 +2,9 @@ import { prepareWAMessageMedia } from './messages.js';
+ import { extractImageThumb, getHttpStream } from './messages-media.js';
+ const THUMBNAIL_WIDTH_PX = 192;
+ /** Fetches an image and generates a thumbnail for it */
+-const getCompressedJpegThumbnail = async (url, { thumbnailWidth, fetchOpts }) => {
++const getCompressedJpegThumbnail = async (url, { thumbnailWidth, fetchOpts, imageProcessor }) => {
+     const stream = await getHttpStream(url, fetchOpts);
+-    const result = await extractImageThumb(stream, thumbnailWidth);
++    const result = await extractImageThumb(stream, thumbnailWidth, imageProcessor);
+     return result;
+ };
+ /**
+@@ -15,7 +15,8 @@ const getCompressedJpegThumbnail = async (url, { thumbnailWidth, fetchOpts }) =>
+  */
+ export const getUrlInfo = async (text, opts = {
+     thumbnailWidth: THUMBNAIL_WIDTH_PX,
+-    fetchOpts: { timeout: 3000 }
++    fetchOpts: { timeout: 3000 },
++    imageProcessor: undefined
+ }) => {
+     try {
+         // retries
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.d.ts b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.d.ts
+index 0f666ec..ec78ff4 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.d.ts
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.d.ts
+@@ -4,7 +4,7 @@ import { Readable, Transform } from 'stream';
+ import { URL } from 'url';
+ import { proto } from '../../WAProto/index.js';
+ import { type MediaType } from '../Defaults/index.js';
+-import type { DownloadableMessage, MediaConnInfo, MediaDecryptionKeyInfo, SocketConfig, WAMediaUpload, WAMediaUploadFunction, WAMessageContent, WAMessageKey } from '../Types/index.js';
++import type { BaileysImageProcessor, DownloadableMessage, MediaConnInfo, MediaDecryptionKeyInfo, SocketConfig, WAMediaUpload, WAMediaUploadFunction, WAMessageContent, WAMessageKey } from '../Types/index.js';
+ import { type BinaryNode } from '../WABinary/index.js';
+ import type { ILogger } from './logger.js';
+ export declare const hkdfInfoKey: (type: MediaType) => string;
+@@ -15,7 +15,7 @@ export declare const getRawMediaUploadData: (media: WAMediaUpload, mediaType: Me
+ }>;
+ /** generates all the keys required to encrypt/decrypt & sign a media message */
+ export declare function getMediaKeys(buffer: Uint8Array | string | null | undefined, mediaType: MediaType): Promise<MediaDecryptionKeyInfo>;
+-export declare const extractImageThumb: (bufferOrFilePath: Readable | Buffer | string, width?: number) => Promise<{
++export declare const extractImageThumb: (bufferOrFilePath: Readable | Buffer | string, width?: number, imageProcessor?: BaileysImageProcessor) => Promise<{
+     buffer: any;
+     original: {
+         width: any;
+@@ -26,7 +26,7 @@ export declare const encodeBase64EncodedStringForUpload: (b64: string) => string
+ export declare const generateProfilePicture: (mediaUpload: WAMediaUpload, dimensions?: {
+     width: number;
+     height: number;
+-}) => Promise<{
++}, imageProcessor?: BaileysImageProcessor) => Promise<{
+     img: Buffer<ArrayBufferLike>;
+ }>;
+ /** gets the SHA256 of the given media message */
+@@ -56,6 +56,7 @@ export declare const getStream: (item: WAMediaUpload, opts?: RequestInit & {
+ /** generates a thumbnail for a given media, if required */
+ export declare function generateThumbnail(file: string, mediaType: 'video' | 'image', options: {
+     logger?: ILogger;
++    imageProcessor?: BaileysImageProcessor;
+ }): Promise<{
+     thumbnail: string | undefined;
+     originalImageDimensions: {
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
+index a3d2fa6..20a6205 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/messages-media.js
+@@ -13,16 +13,28 @@ import { getBinaryNodeChild, getBinaryNodeChildBuffer, jidNormalizedUser } from
+ import { aesDecryptGCM, aesEncryptGCM, hkdf } from './crypto.js';
+ import { generateMessageIDV2 } from './generics.js';
+ const getTmpFilesDirectory = () => tmpdir();
+-const getImageProcessingLibrary = async () => {
++const warned = new Set();
++const deprecationWarning = (name) => {
++    if (!warned.has(name)) {
++        warned.add(name);
++        console.warn(`[Baileys] ${name}: automatic image library discovery is deprecated. Pass an imageProcessor instead. See https://github.com/WhiskeySockets/Baileys/issues/2597`);
++    }
++};
++const getImageProcessingLibrary = async (imageProcessor) => {
++    if (imageProcessor) {
++        return { imageProcessor };
++    }
+     //@ts-ignore
+     const [jimp, sharp] = await Promise.all([import('jimp').catch(() => { }), import('sharp').catch(() => { })]);
+     if (sharp) {
++        deprecationWarning('sharp');
+         return { sharp };
+     }
+     if (jimp) {
++        deprecationWarning('jimp');
+         return { jimp };
+     }
+-    throw new Boom('No image processing library available');
++    throw new Boom('No image processing library available. Provide an imageProcessor in socket config.');
+ };
+ export const hkdfInfoKey = (type) => {
+     const hkdfInfo = MEDIA_HKDF_KEY_MAPPING[type];
+@@ -94,14 +106,19 @@ const extractVideoThumb = async (path, destPath, time, size) => new Promise((res
+         }
+     });
+ });
+-export const extractImageThumb = async (bufferOrFilePath, width = 32) => {
+-    // TODO: Move entirely to sharp, removing jimp as it supports readable streams
+-    // This will have positive speed and performance impacts as well as minimizing RAM usage.
++export const extractImageThumb = async (bufferOrFilePath, width = 32, imageProcessor) => {
+     if (bufferOrFilePath instanceof Readable) {
+         bufferOrFilePath = await toBuffer(bufferOrFilePath);
+     }
+-    const lib = await getImageProcessingLibrary();
+-    if ('sharp' in lib && typeof lib.sharp?.default === 'function') {
++    const lib = await getImageProcessingLibrary(imageProcessor);
++    if ('imageProcessor' in lib) {
++        const result = await lib.imageProcessor.makeImageThumbnail(bufferOrFilePath, { width, quality: 50 });
++        return {
++            buffer: result.jpeg,
++            original: result.original || {}
++        };
++    }
++    else if ('sharp' in lib && typeof lib.sharp?.default === 'function') {
+         const img = lib.sharp.default(bufferOrFilePath);
+         const dimensions = await img.metadata();
+         const buffer = await img.resize(width).jpeg({ quality: 50 }).toBuffer();
+@@ -132,7 +149,7 @@ export const extractImageThumb = async (bufferOrFilePath, width = 32) => {
+     }
+ };
+ export const encodeBase64EncodedStringForUpload = (b64) => encodeURIComponent(b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/\=+$/, ''));
+-export const generateProfilePicture = async (mediaUpload, dimensions) => {
++export const generateProfilePicture = async (mediaUpload, dimensions, imageProcessor) => {
+     let buffer;
+     const { width: w = 640, height: h = 640 } = dimensions || {};
+     if (Buffer.isBuffer(mediaUpload)) {
+@@ -144,9 +161,13 @@ export const generateProfilePicture = async (mediaUpload, dimensions) => {
+         // Convert the resulting stream to a buffer
+         buffer = await toBuffer(stream);
+     }
+-    const lib = await getImageProcessingLibrary();
++    const lib = await getImageProcessingLibrary(imageProcessor);
+     let img;
+-    if ('sharp' in lib && typeof lib.sharp?.default === 'function') {
++    if ('imageProcessor' in lib) {
++        const result = await lib.imageProcessor.makeProfilePicture(buffer, { width: w, height: h, quality: 50 });
++        img = Promise.resolve(result.jpeg);
++    }
++    else if ('sharp' in lib && typeof lib.sharp?.default === 'function') {
+         img = lib.sharp
+             .default(buffer)
+             .resize(w, h)
+@@ -268,7 +289,7 @@ export async function generateThumbnail(file, mediaType, options) {
+     let thumbnail;
+     let originalImageDimensions;
+     if (mediaType === 'image') {
+-        const { buffer, original } = await extractImageThumb(file);
++        const { buffer, original } = await extractImageThumb(file, 32, options?.imageProcessor);
+         thumbnail = buffer.toString('base64');
+         if (original.width && original.height) {
+             originalImageDimensions = {
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
+index 247b1f1..5d35f4c 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
+@@ -155,7 +155,7 @@ export const prepareWAMessageMedia = async (message, options) => {
+         (async () => {
+             try {
+                 if (requiresThumbnailComputation) {
+-                    const { thumbnail, originalImageDimensions } = await generateThumbnail(originalFilePath, mediaType, options);
++                    const { thumbnail, originalImageDimensions } = await generateThumbnail(originalFilePath, mediaType, { ...options, imageProcessor: options.imageProcessor });
+                     uploadData.jpegThumbnail = thumbnail;
+                     if (!uploadData.width && originalImageDimensions) {
+                         uploadData.width = originalImageDimensions.width;
