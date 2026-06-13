@@ -5,6 +5,7 @@ import {
   getQueueSettings,
   markAsFailed,
   markAsSent,
+  updateQueueItem,
   cleanupOrphanedProcessing,
 } from "./storage/queueStorage";
 import type { QueueItem } from "./storage/queueTypes";
@@ -60,23 +61,56 @@ async function processItem(item: QueueItem): Promise<void> {
 
   console.log(`[Scheduler] Processing ${item.id}: ${title}`);
 
-  const [tgOk, waOk] = await Promise.allSettled([
-    sendViaTelegram(item),
-    sendViaWhatsApp(item),
-  ]);
-  console.log(tgOk, waOk);
+  const alreadySuccessful = item.successfulChannels
+    ? item.successfulChannels.split(",").filter(Boolean)
+    : [];
+
+  const tasks: Promise<{ channel: string; ok: boolean }>[] = [];
+
+  if (!alreadySuccessful.includes("telegram")) {
+    tasks.push(
+      sendViaTelegram(item).then((ok) => ({ channel: "telegram", ok }))
+    );
+  }
+  if (!alreadySuccessful.includes("whatsapp")) {
+    tasks.push(
+      sendViaWhatsApp(item).then((ok) => ({ channel: "whatsapp", ok }))
+    );
+  }
+
+  if (tasks.length === 0) {
+    markAsSent(item.id);
+    console.log(`[Scheduler] All channels already successful for ${title}`);
+    return;
+  }
+
+  const results = await Promise.allSettled(tasks);
+
+  const newSuccessful: string[] = [...alreadySuccessful];
   const failures: string[] = [];
 
-  if (tgOk.status === "rejected" || (tgOk.status === "fulfilled" && !tgOk.value)) {
-    failures.push("Telegram");
-  }
-  if (waOk.status === "rejected" || (waOk.status === "fulfilled" && !waOk.value)) {
-    failures.push("WhatsApp");
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      if (r.value.ok) {
+        if (!newSuccessful.includes(r.value.channel)) {
+          newSuccessful.push(r.value.channel);
+        }
+      } else {
+        failures.push(r.value.channel);
+      }
+    } else {
+      failures.push("unknown");
+    }
   }
 
   if (failures.length > 0) {
     const error = `${failures.join(", ")} failed for ${title}`;
     console.warn(`[Scheduler] ${error}`);
+
+    if (newSuccessful.length > 0) {
+      updateQueueItem(item.id, { successfulChannels: newSuccessful.join(",") });
+    }
+
     markAsFailed(item.id, error);
     return;
   }

@@ -7,7 +7,7 @@ import makeWASocket, {
 
 import axios from "axios";
 
-type ConnectionStatus = "connecting" | "connected" | "disconnected";
+type ConnectionStatus = "connecting" | "connected" | "disconnected" | "loading";
 
 const globalForWhatsApp = globalThis as typeof globalThis & {
   __whatsappSock?: ReturnType<typeof makeWASocket> | null;
@@ -21,7 +21,7 @@ const globalForWhatsApp = globalThis as typeof globalThis & {
 let sock = globalForWhatsApp.__whatsappSock ?? null;
 let qrCode = globalForWhatsApp.__whatsappQrCode ?? null;
 let connectionStatus: ConnectionStatus =
-  globalForWhatsApp.__whatsappConnectionStatus ?? "disconnected";
+  globalForWhatsApp.__whatsappConnectionStatus ?? "loading";
 let isInitializing = globalForWhatsApp.__whatsappIsInitializing ?? false;
 let reconnectTimeout = globalForWhatsApp.__whatsappReconnectTimeout ?? null;
 let reconnectAttempts = globalForWhatsApp.__whatsappReconnectAttempts ?? 0;

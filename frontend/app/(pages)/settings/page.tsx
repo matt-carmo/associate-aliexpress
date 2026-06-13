@@ -105,12 +105,12 @@ export default function SettingsPage() {
                       ? "bg-yellow-600"
                       : "bg-red-600"
                 }`}
+              
               />
-              {status === "connected"
-                ? "Connected"
-                : status === "connecting"
-                  ? "Connecting..."
-                  : "Disconnected"}
+              {status === "loading" && "Loading..."}
+              {status === "connected" && "Connected"}
+              {status === "connecting" && "Connecting..."}
+              {status === "disconnected" && "Disconnected"}
             </span>
           </div>
 

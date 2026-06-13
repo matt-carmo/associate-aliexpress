@@ -102,6 +102,7 @@ function rowToQueueItem<T>(row: Record<string, unknown>): QueueItem<T> {
     data: JSON.parse(row.data as string) as T,
     caption: (row.caption as string) ?? undefined,
     target: (row.target as string) ?? undefined,
+    successfulChannels: (row.successful_channels as string) ?? undefined,
     status: (row.status as QueueItem["status"]) ?? "pending",
     priority: (row.priority as number) ?? 0,
     retryCount: (row.retry_count as number) ?? 0,
@@ -219,7 +220,7 @@ export function claimNextItem(): QueueItem | undefined {
     const row = db
       .prepare(
         `SELECT * FROM queue
-         WHERE status = 'pending' OR status = 'failed' OR (status = 'scheduled' AND scheduled_at <= ?)
+         WHERE scheduled_at <= ? AND (status = 'pending' OR status = 'failed' OR status = 'scheduled')
          ORDER BY priority DESC, scheduled_at ASC, created_at ASC
          LIMIT 1`
       )
@@ -323,6 +324,10 @@ export function updateQueueItem(
   if (updates.target !== undefined) {
     fields.push("target = ?");
     values.push(updates.target);
+  }
+  if (updates.successfulChannels !== undefined) {
+    fields.push("successful_channels = ?");
+    values.push(updates.successfulChannels);
   }
   if (updates.manualScheduledAt !== undefined) {
     fields.push("manual_scheduled_at = ?");

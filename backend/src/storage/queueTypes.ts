@@ -11,6 +11,7 @@ export type QueueItem<T = unknown> = {
   priority?: number;
   caption?: string;
   target?: string;
+  successfulChannels?: string;
   retryCount?: number;
   maxRetries?: number;
   lastError?: string;

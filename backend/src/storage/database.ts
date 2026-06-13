@@ -34,6 +34,7 @@ export function getDb(): Database.Database {
       priority INTEGER NOT NULL DEFAULT 0,
       retry_count INTEGER NOT NULL DEFAULT 0,
       max_retries INTEGER NOT NULL DEFAULT 3,
+      successful_channels TEXT,
       last_error TEXT,
       scheduled_at INTEGER NOT NULL,
       manual_scheduled_at INTEGER,
@@ -77,6 +78,11 @@ export function getDb(): Database.Database {
   }
   try {
     db.exec("ALTER TABLE dead_letter_queue ADD COLUMN target TEXT");
+  } catch {
+    // column already exists
+  }
+  try {
+    db.exec("ALTER TABLE queue ADD COLUMN successful_channels TEXT");
   } catch {
     // column already exists
   }
