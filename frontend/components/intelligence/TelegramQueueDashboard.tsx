@@ -208,56 +208,71 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setScheduledDate("");
     setScheduledTime("");
 
-    try {
-      const productId = extractProductId(rawUrl);
-      if (!productId) {
-        setModalStatus("Sem product_id. Use um link de produto válido.");
-        return;
-      }
+    const productId = extractProductId(rawUrl);
+    if (!productId) {
+      setModalStatus("Sem product_id. Use um link de produto valido.");
+      return;
+    }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+    let hydrated: DiscoveryProduct | null = null;
+    let promotionLink = "";
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
       const response = await fetch(
-        `/api/aliexpress?type=product-details&product_id=${encodeURIComponent(productId)}`,
+        `/api/aliexpress?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`,
         { signal: controller.signal }
       );
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload.product) {
+          hydrated = mapDetailsToProduct(payload.product, {
+            productId,
+            title: "Produto sem titulo",
+            imageUrl: "",
+            detailUrl: rawUrl,
+          });
+        }
+      }
+    } catch {
+      // Product details not available via API — will try affiliate link
+    } finally {
       clearTimeout(timeoutId);
+    }
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Falha ao carregar detalhes do produto");
-      }
-
-      const payload = await response.json();
-      if (!payload.product) {
-        throw new Error("Produto não encontrado");
-      }
-
-      const hydrated = mapDetailsToProduct(payload.product, {
-        productId,
-        title: "Produto sem título",
-        imageUrl: "",
-        detailUrl: rawUrl,
-      });
-      setModalPreview(hydrated);
-
+    try {
       const linkResponse = await fetch(
         `/api/aliexpress?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`
       );
-      console.log(`linkResponse`, linkResponse);
       if (linkResponse.ok) {
         const linkPayload = await linkResponse.json();
-        const link = linkPayload.promotionLink || "";
-        setPromotionLink(link);
-        setCaptionText(generateText("padrao", hydrated, link));
-      } else {
-        setPromotionLink("");
-        setCaptionText(generateText("padrao", hydrated, ""));
+        promotionLink = linkPayload.promotionLink || "";
       }
+    } catch {
+      // Affiliate link not available
+    }
 
-      setModalStatus(linkResponse.ok ? "Detalhes carregados." : "Detalhes carregados. Link de afiliado indisponível para este produto.");
-    } catch (error) {
-      setModalStatus(error instanceof Error ? error.message : "Falha ao carregar detalhes");
+    if (hydrated || promotionLink) {
+      if (!hydrated) {
+        hydrated = {
+          productId,
+          title: "Produto sem titulo",
+          imageUrl: "",
+          detailUrl: rawUrl,
+        };
+      }
+      setModalPreview(hydrated);
+      setPromotionLink(promotionLink);
+      setCaptionText(generateText("padrao", hydrated, promotionLink));
+      setModalStatus(
+        promotionLink
+          ? "Detalhes carregados."
+          : "Detalhes carregados. Link de afiliado indisponivel para este produto."
+      );
+    } else {
+      setModalStatus("Nao foi possivel carregar as informacoes do produto.");
     }
   };
 
@@ -280,6 +295,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
 
     const hydrated = modalPreview ? { ...modalPreview, ...baseProduct } : baseProduct;
     const queueId = `${productId || modalProductUrl}-${Date.now()}`;
+    const whatsappTarget = typeof window !== "undefined" ? localStorage.getItem("whatsapp_target") ?? undefined : undefined;
 
     let manualScheduledAt: number | undefined;
     if (scheduledDate || scheduledTime) {
@@ -294,6 +310,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       await enqueueItem({
         id: queueId,
         data: hydrated,
+        target: whatsappTarget,
         manualScheduledAt,
         caption: captionText || undefined,
       });
@@ -312,10 +329,12 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setSendingNow(true);
 
     try {
+      const whatsappTarget = typeof window !== "undefined" ? localStorage.getItem("whatsapp_target") ?? undefined : undefined;
       const queueId = `${extractProductId(modalProductUrl)}-${Date.now()}`;
       await enqueueItem({
         id: queueId,
         data: modalPreview,
+        target: whatsappTarget,
         caption: captionText,
         status: "pending",
       });

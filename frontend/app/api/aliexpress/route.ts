@@ -159,13 +159,31 @@ export async function GET(request: Request) {
 
     if (type === "product-details") {
       const productId = searchParams.get("product_id") || "";
+      const productDetailUrl = searchParams.get("product_detail_url") || "";
 
       if (!productId) {
         return NextResponse.json({ error: "product_id is required" }, { status: 400 });
       }
 
-      const products = await getProductsInfo({ product_ids: productId });
-      const product = Array.isArray(products) ? products[0] : products;
+      let products = await getProductsInfo({ product_ids: productId });
+      let product = Array.isArray(products) ? products[0] : products;
+
+      if (!product && productDetailUrl) {
+        try {
+          const promotionLink = await generateAffiliateLink({ product_detail_url: productDetailUrl });
+          if (promotionLink) {
+            const redirectRes = await fetch(promotionLink, { redirect: "follow", signal: AbortSignal.timeout(8000) });
+            const finalUrl = redirectRes.url;
+            const resolvedMatch = finalUrl.match(/\/item\/(\d+)\.html/i);
+            if (resolvedMatch?.[1]) {
+              products = await getProductsInfo({ product_ids: resolvedMatch[1] });
+              product = Array.isArray(products) ? products[0] : products;
+            }
+          }
+        } catch {
+          console.warn("Fallback product resolution failed for:", productDetailUrl);
+        }
+      }
 
       if (!product) {
         return NextResponse.json({ error: "Product not found" }, { status: 404 });

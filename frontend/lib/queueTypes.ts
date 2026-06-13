@@ -9,6 +9,7 @@ export type QueueItem<T = unknown> = {
   status?: QueueStatus;
   priority?: number;
   caption?: string;
+  target?: string;
 };
 
 export type BackendQueueItem<T = unknown> = {
@@ -16,6 +17,7 @@ export type BackendQueueItem<T = unknown> = {
   idempotencyKey?: string;
   data: T;
   caption?: string;
+  target?: string;
   status: QueueStatus;
   priority: number;
   retryCount: number;
@@ -32,6 +34,7 @@ export type BackendDeadLetterItem<T = unknown> = {
   originalQueueId?: string;
   data: T;
   caption?: string;
+  target?: string;
   error?: string;
   retryCount?: number;
   createdAt: number;

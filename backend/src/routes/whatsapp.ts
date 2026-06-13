@@ -32,7 +32,7 @@ whatsappRouter.get("/status", async (_req, res) => {
 whatsappRouter.post("/send", async (req, res) => {
   const { to, imageUrl, caption, text } = req.body ?? {};
   const target = to ?? whatsappConfig.to;
-
+  console.log(target)
   if (!target) {
     return res.status(400).json({ error: "to is required" });
   }

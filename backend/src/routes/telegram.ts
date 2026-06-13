@@ -12,7 +12,7 @@ telegramRouter.post("/send", async (req, res) => {
   }
 
   if (!config.botToken) {
-    return res.status(503).json({ error: "Missing Telegram bot token. Set TELEGRAM_BOT_TOKEN." });
+    return res.status(503).json({ error: "Missing Telegram bot token. Set TELEGRAM_CHAT_ID." });
   }
 
   try {

@@ -28,7 +28,9 @@ export default function SettingsPage() {
       try {
         const res = await fetch(`${messagingBaseUrl}/whatsapp/status`);
         const data = await res.json();
-        setStatus(data.status);
+
+        console.log("Status update:", data);
+        setStatus(data.connection);
         setQrCode(data.qrCode ?? null);
         setTelegramChatId(data.telegramChatId ?? "");
       } catch {

@@ -10,6 +10,7 @@ export type QueueItem<T = unknown> = {
   status?: QueueStatus;
   priority?: number;
   caption?: string;
+  target?: string;
   retryCount?: number;
   maxRetries?: number;
   lastError?: string;
@@ -21,6 +22,7 @@ export type DeadLetterItem<T = unknown> = {
   originalQueueId?: string;
   data: T;
   caption?: string;
+  target?: string;
   error?: string;
   retryCount?: number;
   createdAt: number;

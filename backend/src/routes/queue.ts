@@ -34,7 +34,7 @@ queueRouter.get("/failed", (_req, res) => {
 });
 
 queueRouter.post("/", (req, res) => {
-  const { id, idempotencyKey, data, manualScheduledAt, caption, scheduledAt, status, priority, maxRetries } = req.body ?? {};
+  const { id, idempotencyKey, data, manualScheduledAt, caption, target, scheduledAt, status, priority, maxRetries } = req.body ?? {};
 
   if (!id || !data) {
     return res.status(400).json({ error: "id and data are required" });
@@ -46,6 +46,7 @@ queueRouter.post("/", (req, res) => {
     data,
     manualScheduledAt,
     caption,
+    target,
     scheduledAt,
     status,
     priority,
@@ -94,6 +95,7 @@ queueRouter.put("/:id", (req, res) => {
   const updates: Record<string, unknown> = {};
   if (body.manualScheduledAt !== undefined) updates.manualScheduledAt = body.manualScheduledAt;
   if (body.caption !== undefined) updates.caption = body.caption;
+  if (body.target !== undefined) updates.target = body.target;
   if (body.priority !== undefined) updates.priority = body.priority;
   if (body.maxRetries !== undefined) updates.maxRetries = body.maxRetries;
 

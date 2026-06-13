@@ -101,6 +101,7 @@ function rowToQueueItem<T>(row: Record<string, unknown>): QueueItem<T> {
     idempotencyKey: (row.idempotency_key as string) ?? undefined,
     data: JSON.parse(row.data as string) as T,
     caption: (row.caption as string) ?? undefined,
+    target: (row.target as string) ?? undefined,
     status: (row.status as QueueItem["status"]) ?? "pending",
     priority: (row.priority as number) ?? 0,
     retryCount: (row.retry_count as number) ?? 0,
@@ -134,13 +135,14 @@ export function enqueue<T = unknown>(
     item.idempotencyKey ?? `${item.id}-${now}`;
 
   db.prepare(
-    `INSERT INTO queue (id, idempotency_key, data, caption, status, priority, retry_count, max_retries, scheduled_at, manual_scheduled_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO queue (id, idempotency_key, data, caption, target, status, priority, retry_count, max_retries, scheduled_at, manual_scheduled_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     item.id,
     idempotencyKey,
     JSON.stringify(item.data),
     item.caption ?? null,
+    item.target ?? null,
     item.status ?? "scheduled",
     item.priority ?? 0,
     0,
@@ -164,8 +166,8 @@ export function enqueueMany<T = unknown>(
   const now = Date.now();
 
   const insert = db.prepare(
-    `INSERT OR IGNORE INTO queue (id, idempotency_key, data, caption, status, priority, retry_count, max_retries, scheduled_at, manual_scheduled_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT OR IGNORE INTO queue (id, idempotency_key, data, caption, target, status, priority, retry_count, max_retries, scheduled_at, manual_scheduled_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const existingIds = new Set(
@@ -192,6 +194,7 @@ export function enqueueMany<T = unknown>(
         idempotencyKey,
         JSON.stringify(item.data),
         item.caption ?? null,
+        item.target ?? null,
         item.status ?? "scheduled",
         item.priority ?? 0,
         0,
@@ -275,13 +278,14 @@ export function moveToDeadLetter(id: string, error: string) {
   if (!item) return;
 
   db.prepare(
-    `INSERT INTO dead_letter_queue (id, original_queue_id, data, caption, error, retry_count, created_at, moved_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO dead_letter_queue (id, original_queue_id, data, caption, target, error, retry_count, created_at, moved_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     `${item.id}_${Date.now()}`,
     item.id,
     item.data,
     item.caption,
+    item.target ?? null,
     error,
     item.retry_count,
     item.created_at,
@@ -315,6 +319,10 @@ export function updateQueueItem(
   if (updates.caption !== undefined) {
     fields.push("caption = ?");
     values.push(updates.caption);
+  }
+  if (updates.target !== undefined) {
+    fields.push("target = ?");
+    values.push(updates.target);
   }
   if (updates.manualScheduledAt !== undefined) {
     fields.push("manual_scheduled_at = ?");
@@ -364,6 +372,7 @@ export function getDeadLetterQueue<T = unknown>(): DeadLetterItem<T>[] {
     originalQueueId: (row.original_queue_id as string) ?? undefined,
     data: JSON.parse(row.data as string) as T,
     caption: (row.caption as string) ?? undefined,
+    target: (row.target as string) ?? undefined,
     error: (row.error as string) ?? undefined,
     retryCount: (row.retry_count as number) ?? undefined,
     createdAt: row.created_at as number,
@@ -380,8 +389,8 @@ export function reprocessDeadLetter(id: string) {
   if (!dlqItem) return false;
 
   const insert = db.prepare(
-    `INSERT OR IGNORE INTO queue (id, idempotency_key, data, caption, status, priority, retry_count, max_retries, scheduled_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'pending', 0, 0, 3, ?, ?, ?)`
+    `INSERT OR IGNORE INTO queue (id, idempotency_key, data, caption, target, status, priority, retry_count, max_retries, scheduled_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'pending', 0, 0, 3, ?, ?, ?)`
   );
 
   const deleteDlq = db.prepare("DELETE FROM dead_letter_queue WHERE id = ?");
@@ -392,6 +401,7 @@ export function reprocessDeadLetter(id: string) {
       `reprocess-${dlqItem.id}`,
       dlqItem.data,
       dlqItem.caption,
+      dlqItem.target ?? null,
       Date.now(),
       Date.now(),
       Date.now()

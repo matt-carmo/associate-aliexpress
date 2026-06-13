@@ -16,7 +16,6 @@ const globalForWhatsApp = globalThis as typeof globalThis & {
   __whatsappIsInitializing?: boolean;
   __whatsappReconnectTimeout?: NodeJS.Timeout | null;
   __whatsappReconnectAttempts?: number;
-  __whatsappLoggedNewsletterIds?: Set<string>;
 };
 
 let sock = globalForWhatsApp.__whatsappSock ?? null;
@@ -27,8 +26,6 @@ let isInitializing = globalForWhatsApp.__whatsappIsInitializing ?? false;
 let reconnectTimeout = globalForWhatsApp.__whatsappReconnectTimeout ?? null;
 let reconnectAttempts = globalForWhatsApp.__whatsappReconnectAttempts ?? 0;
 let initPromise: Promise<void> | null = null;
-const loggedNewsletterIds =
-  globalForWhatsApp.__whatsappLoggedNewsletterIds ?? new Set<string>();
 
 globalForWhatsApp.__whatsappSock = sock;
 globalForWhatsApp.__whatsappQrCode = qrCode;
@@ -36,13 +33,11 @@ globalForWhatsApp.__whatsappConnectionStatus = connectionStatus;
 globalForWhatsApp.__whatsappIsInitializing = isInitializing;
 globalForWhatsApp.__whatsappReconnectTimeout = reconnectTimeout;
 globalForWhatsApp.__whatsappReconnectAttempts = reconnectAttempts;
-globalForWhatsApp.__whatsappLoggedNewsletterIds = loggedNewsletterIds;
 
 function buildJid(target: string) {
   if (
     target.includes("@g.us") ||
-    target.includes("@s.whatsapp.net") ||
-    target.includes("@newsletter")
+    target.includes("@s.whatsapp.net")
   ) {
     return target;
   }
@@ -61,38 +56,6 @@ function normalizeWhatsAppText(value: string) {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .trim();
-}
-
-async function logNewsletter(
-  socket: ReturnType<typeof makeWASocket>,
-  jid: string
-) {
-  if (loggedNewsletterIds.has(jid)) {
-    return;
-  }
-
-  loggedNewsletterIds.add(jid);
-
-  console.log("Newsletter detectada:", jid);
-
-  try {
-    const metadata = await socket.newsletterMetadata("jid", jid);
-
-    console.log("Newsletter metadata:", {
-      id: metadata?.id,
-      name: metadata?.name,
-      description: metadata?.description,
-      subscribers: metadata?.subscribers,
-      creation_time: metadata?.creation_time,
-      invite: metadata?.invite,
-    });
-  } catch (error) {
-    console.log(
-      "Erro ao buscar metadata da newsletter:",
-      jid,
-      error
-    );
-  }
 }
 
 async function init() {
@@ -147,18 +110,16 @@ async function init() {
           reconnectAttempts = 0;
           globalForWhatsApp.__whatsappReconnectAttempts = 0;
 
-          if (process.env.NODE_ENV === "development") {
-            try {
-              const groups = await newSock.groupFetchAllParticipating();
-              const entries = Object.values(groups).map((group) => ({
-                id: group.id,
-                subject: group.subject,
-              }));
-              console.log("Grupos disponíveis:");
-              console.table(entries);
-            } catch (error) {
-              console.log("Erro ao buscar grupos:", error);
-            }
+          try {
+            const groups = await newSock.groupFetchAllParticipating();
+            const entries = Object.values(groups).map((group) => ({
+              id: group.id,
+              subject: group.subject,
+            }));
+            console.log("Grupos disponíveis:");
+            console.table(entries);
+          } catch (error) {
+            console.log("Erro ao buscar grupos:", error);
           }
         }
 
@@ -210,14 +171,6 @@ async function init() {
           const remoteJid = message.key.remoteJid;
 
           if (!remoteJid) continue;
-
-          if (remoteJid.endsWith("@newsletter")) {
-            await logNewsletter(newSock, remoteJid);
-            console.log("Mensagem de newsletter recebida:", {
-              jid: remoteJid,
-              id: message.key.id,
-            });
-          }
         }
       });
 
@@ -279,15 +232,7 @@ export async function sendImage(
 
   const jid = buildJid(to);
   const normalizedCaption = normalizeWhatsAppText(caption ?? "");
-
-  if (jid.endsWith("@newsletter")) {
-    const message = [imageUrl, normalizedCaption]
-      .filter(Boolean)
-      .join("\n");
-    await socket.sendMessage(jid, { text: message, linkPreview: null });
-    return;
-  }
-
+  console.log("Enviando imagem para", jid, "com legenda:", normalizedCaption);
   await socket.sendMessage(jid, {
     image: buffer,
     caption: normalizedCaption,

@@ -85,7 +85,12 @@ export const getProductsInfo = async ({product_ids}: {product_ids: string}) => {
     }
     const response = await axios.post(baseUrlSync, createSignedParams(params));
 
-    return response.data.aliexpress_affiliate_productdetail_get_response.resp_result.result.products.product;
+    const respResult = response.data?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+    if (respResult?.resp_code !== 200) {
+        console.error("AliExpress product detail error:", respResult?.resp_msg);
+        return null;
+    }
+    return respResult?.result?.products?.product ?? null;
 }
 export const getFeaturedProducts = async ({category_id, sort, promotion_name, page_no}: {sort:string,page_no: number, category_id: string, promotion_name?: string}) => {
     const params = {

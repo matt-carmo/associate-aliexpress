@@ -3,7 +3,7 @@ import { config } from "../config/telegram";
 
 export const sendPhoto = async ({ chatId, photoUrl, text }: { chatId: number; photoUrl: string; text: string }) => {
   if (!config.botToken) {
-    throw new Error("Missing Telegram bot token. Set TELEGRAM_BOT_TOKEN.");
+    throw new Error("Missing Telegram bot token. Set TELEGRAM_CHAT_ID.");
   }
 
   const url = `https://api.telegram.org/bot${config.botToken}/sendPhoto`;

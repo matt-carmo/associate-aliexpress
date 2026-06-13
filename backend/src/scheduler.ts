@@ -22,13 +22,13 @@ let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let cleanupHandle: ReturnType<typeof setInterval> | null = null;
 
 async function sendViaWhatsApp(item: QueueItem): Promise<boolean> {
-  const { data, caption } = item;
+  const { data, caption, target: itemTarget } = item;
   const imageUrl = (data as Record<string, unknown>)?.imageUrl as string | undefined;
   if (!imageUrl) return false;
 
-  const target = whatsappConfig.to;
+  const target = itemTarget ?? whatsappConfig.to;
   if (!target) {
-    console.warn("[Scheduler] WHATSAPP_CHAT_ID not set — skipping WhatsApp send");
+    console.warn("[Scheduler] No target (item target or WHATSAPP_CHAT_ID) — skipping WhatsApp send");
     return false;
   }
 
@@ -64,7 +64,7 @@ async function processItem(item: QueueItem): Promise<void> {
     sendViaTelegram(item),
     sendViaWhatsApp(item),
   ]);
-
+  console.log(tgOk, waOk);
   const failures: string[] = [];
 
   if (tgOk.status === "rejected" || (tgOk.status === "fulfilled" && !tgOk.value)) {

@@ -29,6 +29,7 @@ export function getDb(): Database.Database {
       idempotency_key TEXT UNIQUE,
       data TEXT NOT NULL,
       caption TEXT,
+      target TEXT,
       status TEXT NOT NULL DEFAULT 'pending',
       priority INTEGER NOT NULL DEFAULT 0,
       retry_count INTEGER NOT NULL DEFAULT 0,
@@ -50,6 +51,7 @@ export function getDb(): Database.Database {
       original_queue_id TEXT,
       data TEXT NOT NULL,
       caption TEXT,
+      target TEXT,
       error TEXT,
       retry_count INTEGER,
       created_at INTEGER NOT NULL,
@@ -67,6 +69,17 @@ export function getDb(): Database.Database {
       ('active_start', '08:00'),
       ('active_end', '22:00');
   `);
+
+  try {
+    db.exec("ALTER TABLE queue ADD COLUMN target TEXT");
+  } catch {
+    // column already exists
+  }
+  try {
+    db.exec("ALTER TABLE dead_letter_queue ADD COLUMN target TEXT");
+  } catch {
+    // column already exists
+  }
 
   return db;
 }

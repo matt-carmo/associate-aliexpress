@@ -25,6 +25,7 @@ export async function enqueueItem(item: {
   idempotencyKey?: string;
   data: unknown;
   caption?: string;
+  target?: string;
   manualScheduledAt?: number;
   status?: string;
   priority?: number;
@@ -52,7 +53,7 @@ export async function removeQueueItem(id: string) {
 
 export async function updateQueueItem(
   id: string,
-  updates: { manualScheduledAt?: number; caption?: string; priority?: number }
+  updates: { manualScheduledAt?: number; caption?: string; target?: string; priority?: number }
 ) {
   return request<{ message: string }>(`/queue/${id}`, {
     method: "PUT",
