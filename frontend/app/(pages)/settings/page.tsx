@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 
 export default function SettingsPage() {
-  const [status, setStatus] = useState<string>("disconnected");
+  const [status, setStatus] = useState<string>("loading");
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [target, setTarget] = useState("");
   const [saved, setSaved] = useState(false);
@@ -24,7 +24,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const fetchStatus = async () => {
       try {
         const res = await fetch(`${messagingBaseUrl}/whatsapp/status`);
         const data = await res.json();
@@ -36,7 +36,10 @@ export default function SettingsPage() {
       } catch {
         // polling error
       }
-    }, 2000);
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -92,7 +95,7 @@ export default function SettingsPage() {
               className={`inline-flex items-center gap-1.5 text-sm ${
                 status === "connected"
                   ? "text-green-600"
-                  : status === "connecting"
+                  : status === "connecting" || status === "loading"
                     ? "text-yellow-600"
                     : "text-red-600"
               }`}
@@ -101,11 +104,11 @@ export default function SettingsPage() {
                 className={`h-2 w-2 rounded-full ${
                   status === "connected"
                     ? "bg-green-600"
-                    : status === "connecting"
+                    : status === "connecting" || status === "loading"
                       ? "bg-yellow-600"
                       : "bg-red-600"
                 }`}
-              
+
               />
               {status === "loading" && "Loading..."}
               {status === "connected" && "Connected"}
