@@ -1,5 +1,5 @@
 import axios from "axios";
-import { config } from "../config/telegram";
+import { config } from "../config/telegram.js";
 
 export const sendPhoto = async ({ chatId, photoUrl, text }: { chatId: number; photoUrl: string; text: string }) => {
   if (!config.botToken) {

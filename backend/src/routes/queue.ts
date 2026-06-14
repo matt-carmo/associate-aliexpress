@@ -12,7 +12,7 @@ import {
   getDeadLetterQueue,
   reprocessDeadLetter,
   purgeDeadLetterQueue,
-} from "../storage/queueStorage";
+} from "../storage/queueStorage.js";
 
 export const queueRouter = Router();
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { config } from "../config/telegram";
-import { sendPhoto } from "../services/telegram";
+import { config } from "../config/telegram.js";
+import { sendPhoto } from "../services/telegram.js";
 
 export const telegramRouter = Router();
 

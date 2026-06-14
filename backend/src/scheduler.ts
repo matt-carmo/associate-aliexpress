@@ -7,12 +7,12 @@ import {
   markAsSent,
   updateQueueItem,
   cleanupOrphanedProcessing,
-} from "./storage/queueStorage";
-import type { QueueItem } from "./storage/queueTypes";
-import { sendPhoto } from "./services/telegram";
-import { sendImage } from "./services/whatsapp";
-import { config as telegramConfig } from "./config/telegram";
-import { config as whatsappConfig } from "./config/whatsapp";
+} from "./storage/queueStorage.js";
+import type { QueueItem } from "./storage/queueTypes.js";
+import { sendPhoto } from "./services/telegram.js";
+import { sendImage } from "./services/whatsapp.js";
+import { config as telegramConfig } from "./config/telegram.js";
+import { config as whatsappConfig } from "./config/whatsapp.js";
 
 const CHAT_ID = telegramConfig.chatId;
 const POLL_INTERVAL_MS = 10_000;

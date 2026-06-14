@@ -1,13 +1,13 @@
-import { getDb } from "./database";
+import { getDb } from "./database.js";
 import type {
   QueueItem,
   QueueScheduleSettings,
   QueueStats,
   DeadLetterItem,
-} from "./queueTypes";
+} from "./queueTypes.js";
 
-export type { QueueItem, QueueScheduleSettings, QueueStats, DeadLetterItem } from "./queueTypes";
-export type { QueueStatus } from "./queueTypes";
+export type { QueueItem, QueueScheduleSettings, QueueStats, DeadLetterItem } from "./queueTypes.js";
+export type { QueueStatus } from "./queueTypes.js";
 
 const DEFAULT_SETTINGS: QueueScheduleSettings = {
   minIntervalMinutes: 5,

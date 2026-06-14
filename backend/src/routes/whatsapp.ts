@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { config as whatsappConfig } from "../config/whatsapp";
-import { getConnectionStatus, getQRCode, getSocket, sendImage, sendText } from "../services/whatsapp";
-import { getQueueStats } from "../storage/queueStorage";
+import { config as whatsappConfig } from "../config/whatsapp.js";
+import { getConnectionStatus, getQRCode, getSocket, sendImage, sendText } from "../services/whatsapp.js";
+import { getQueueStats } from "../storage/queueStorage.js";
 
 export const whatsappRouter = Router();
 

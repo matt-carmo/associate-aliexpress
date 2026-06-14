@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
-import { startScheduler, stopScheduler } from "./scheduler";
-import { getConnectionStatus, getSocket } from "./services/whatsapp";
-import { telegramRouter } from "./routes/telegram";
-import { whatsappRouter } from "./routes/whatsapp";
-import { queueRouter } from "./routes/queue";
-import { getQueueStats } from "./storage/queueStorage";
-import { closeDb } from "./storage/database";
+import { startScheduler, stopScheduler } from "./scheduler.js";
+import { getConnectionStatus, getSocket } from "./services/whatsapp.js";
+import { telegramRouter } from "./routes/telegram.js";
+import { whatsappRouter } from "./routes/whatsapp.js";
+import { queueRouter } from "./routes/queue.js";
+import { getQueueStats } from "./storage/queueStorage.js";
+import { closeDb } from "./storage/database.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
