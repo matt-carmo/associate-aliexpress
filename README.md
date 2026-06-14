@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Associate AliExpress
 
-## Getting Started
+Platform for managing and automatically publishing affiliate products from AliExpress to **Telegram** and **WhatsApp**.
 
-First, run the development server:
+## Architecture
+
+The project is a monorepo containing two applications:
+
+| Folder     | Description                                                | Stack                                                 |
+| ---------- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| `frontend` | Web dashboard (CMS) to manage the product publishing queue | Next.js 15, React 19, Tailwind CSS, shadcn/ui         |
+| `backend`  | Messaging API that publishes to Telegram and WhatsApp      | Express, Baileys (WhatsApp), Telegram Bot API, SQLite |
+
+## Prerequisites
+
+* **Node.js** >= 20
+* **npm** >= 10
+* Affiliate account on AliExpress Portals (to obtain App Key and App Secret)
+* Telegram Bot (create via @BotFather)
+* WhatsApp account for connection through Baileys (QR Code)
+
+## Installation
+
+### 1. Clone the repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd associate-aliexpress
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Backend
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd backend
+cp .env.example .env
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edit the `backend/.env` file with your credentials:
 
-## Learn More
+```env
+ALIEXPRESS_APP_KEY=your_app_key
+ALIEXPRESS_APP_SECRET=your_app_secret
+TELEGRAM_BOT_TOKEN=telegram_bot_token
+TELEGRAM_BOT_ID=bot_id
+TELEGRAM_CHAT_ID=telegram_chat_id
+WHATSAPP_CHAT_ID=whatsapp_chat_id
+PORT=4000
+CORS_ORIGIN=*
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Frontend
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd frontend
+cp .env.example .env
+npm install
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Edit the `frontend/.env` file:
 
-## Deploy on Vercel
+```env
+ALIEXPRESS_APP_KEY=your_app_key
+ALIEXPRESS_APP_SECRET=your_app_secret
+NEXT_PUBLIC_MESSAGING_API_URL=http://localhost:4000
+TELEGRAM_CHAT_ID=telegram_chat_id
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Running the Project
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+The server will start at `http://localhost:4000`.
+
+### Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+The dashboard will be available at `http://localhost:3000`.
+
+### Production Build
+
+```bash
+# Backend
+cd backend && npm run build && npm start
+
+# Frontend
+cd frontend && npm run build && npm start
+```
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+| Variable                | Description                                                      | Required |
+| ----------------------- | ---------------------------------------------------------------- | -------- |
+| `ALIEXPRESS_APP_KEY`    | AliExpress affiliate API App Key                                 | Yes      |
+| `ALIEXPRESS_APP_SECRET` | AliExpress affiliate API App Secret                              | Yes      |
+| `TELEGRAM_BOT_TOKEN`    | Telegram bot token (provided by @BotFather)                      | Yes      |
+| `TELEGRAM_BOT_ID`       | Telegram bot ID                                                  | No       |
+| `TELEGRAM_CHAT_ID`      | Telegram chat/group ID for publishing                            | Yes      |
+| `WHATSAPP_CHAT_ID`      | WhatsApp chat/group ID for publishing                            | No       |
+| `PORT`                  | Server port (default: `4000`)                                    | No       |
+| `CORS_ORIGIN`           | Allowed CORS origin (default: `*`)                               | No       |
+| `QUEUE_DATA_DIR`        | Queue data directory (default: `data`)                           | No       |
+| `WHATSAPP_AUTH_DIR`     | WhatsApp authentication directory (default: `auth_info_baileys`) | No       |
+
+### Frontend (`frontend/.env`)
+
+| Variable                        | Description                                             | Required |
+| ------------------------------- | ------------------------------------------------------- | -------- |
+| `ALIEXPRESS_APP_KEY`            | AliExpress affiliate API App Key                        | Yes      |
+| `ALIEXPRESS_APP_SECRET`         | AliExpress affiliate API App Secret                     | Yes      |
+| `NEXT_PUBLIC_MESSAGING_API_URL` | Backend API base URL (default: `http://localhost:4000`) | Yes      |
+| `TELEGRAM_CHAT_ID`              | Telegram chat ID                                        | No       |
+
+## Features
+
+* **Queue Dashboard** — view and manage products in the publishing queue
+* **Scheduled Publishing** — the scheduler automatically sends products to Telegram and WhatsApp
+* **WhatsApp Connection** — scan the QR Code on the Settings screen to connect WhatsApp
+* **Multi-channel Delivery** — each product is sent to Telegram and WhatsApp with individual retry handling per channel
+* **AliExpress Affiliate API** — search products and generate affiliate links
+
+## API Endpoints (Backend)
+
+| Method | Route                  | Description                  |
+| ------ | ---------------------- | ---------------------------- |
+| GET    | `/health`              | Server and connection status |
+| GET    | `/whatsapp/status`     | WhatsApp connection status   |
+| POST   | `/whatsapp/send`       | Send message via WhatsApp    |
+| GET    | `/queue`               | List queue items             |
+| POST   | `/telegram/send-photo` | Send photo via Telegram      |
+
+## License
+
+Private — internal use only.

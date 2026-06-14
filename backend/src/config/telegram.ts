@@ -1,5 +1,5 @@
 export const config = {
-    botToken: process.env.TELEGRAM_CHAT_ID ?? "",
+    botToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
     botId: process.env.TELEGRAM_BOT_ID ?? "",
-    chatId: Number(process.env.TELEGRAM_CHAT_ID) || -1002399025968,
+    chatId: Number(process.env.TELEGRAM_CHAT_ID) || 0,
 };

@@ -10,5 +10,13 @@ yarn-error.log*
 .DS_Store
 *.pem
 
+# env files
+.env
+.env*.local
+
 # typescript
 *.tsbuildinfo
+
+# backend data
+data/
+auth_info_baileys/

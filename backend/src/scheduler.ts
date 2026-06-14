@@ -14,7 +14,7 @@ import { sendImage } from "./services/whatsapp";
 import { config as telegramConfig } from "./config/telegram";
 import { config as whatsappConfig } from "./config/whatsapp";
 
-const CHAT_ID = telegramConfig.chatId || -1002399025968;
+const CHAT_ID = telegramConfig.chatId;
 const POLL_INTERVAL_MS = 10_000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
