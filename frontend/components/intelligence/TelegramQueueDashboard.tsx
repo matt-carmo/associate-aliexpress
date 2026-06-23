@@ -22,6 +22,7 @@ import {
   removeQueueItem,
   updateQueueItem,
   clearQueue,
+  getWhatsAppTarget,
 } from "@/lib/backendApi";
 
 const parseNumber = (value?: string | number): number => {
@@ -295,7 +296,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
 
     const hydrated = modalPreview ? { ...modalPreview, ...baseProduct } : baseProduct;
     const queueId = `${productId || modalProductUrl}-${Date.now()}`;
-    const whatsappTarget = typeof window !== "undefined" ? localStorage.getItem("whatsapp_target") ?? undefined : undefined;
+    const whatsappTarget = await getWhatsAppTarget() || undefined;
 
     let manualScheduledAt: number | undefined;
     if (scheduledDate || scheduledTime) {
@@ -329,7 +330,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setSendingNow(true);
 
     try {
-      const whatsappTarget = typeof window !== "undefined" ? localStorage.getItem("whatsapp_target") ?? undefined : undefined;
+      const whatsappTarget = await getWhatsAppTarget() || undefined;
       const queueId = `${extractProductId(modalProductUrl)}-${Date.now()}`;
       await enqueueItem({
         id: queueId,

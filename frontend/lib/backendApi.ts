@@ -2,6 +2,8 @@ import type { BackendQueueItem, BackendQueueStats, BackendDeadLetterItem, Backen
 
 const API_URL = process.env.NEXT_PUBLIC_MESSAGING_API_URL ?? "http://localhost:4000";
 
+console.log("Using API URL:", API_URL);
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_URL}${path}`;
   const res = await fetch(url, {
@@ -89,4 +91,31 @@ export async function clearQueue() {
 
 export async function getHealth() {
   return request<BackendHealth>("/health");
+}
+
+let _whatsappTargetCache: string | null | undefined;
+
+export async function getWhatsAppTarget(): Promise<string> {
+  if (_whatsappTargetCache !== undefined) return _whatsappTargetCache ?? "";
+  try {
+    const data = await request<{ target: string }>("/whatsapp/target");
+    _whatsappTargetCache = data.target ?? "";
+    return _whatsappTargetCache;
+  } catch {
+    _whatsappTargetCache = "";
+    return "";
+  }
+}
+
+export function invalidateWhatsAppTarget() {
+  _whatsappTargetCache = undefined;
+}
+
+export async function saveWhatsAppTarget(target: string) {
+  const data = await request<{ target: string }>("/whatsapp/target", {
+    method: "PUT",
+    body: JSON.stringify({ target }),
+  });
+  _whatsappTargetCache = data.target;
+  return _whatsappTargetCache;
 }

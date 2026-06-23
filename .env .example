@@ -1,0 +1,20 @@
+# AliExpress Affiliate API
+ALIEXPRESS_APP_KEY=Your_AliExpress_App_Key_Here
+ALIEXPRESS_APP_SECRET=Your_AliExpress_App_Secret_Here
+
+# FRONTEND
+NEXT_PUBLIC_MESSAGING_API_URL=Your_Frontend_Messaging_API_URL_Here
+# Telegram
+TELEGRAM_CHAT_ID=Your_Telegram_Chat_ID_Here
+TELEGRAM_BOT_TOKEN=Your_Telegram_Bot_Token_Here
+TELEGRAM_BOT_ID=Your_Telegram_Bot_ID_Here
+# WhatsApp
+WHATSAPP_CHAT_ID=Your_WhatsApp_Chat_ID_Here
+
+# Backend server
+BACKEND_PORT=4000
+CORS_ORIGIN=* ## You can specify the allowed origins for CORS, e.g., http://localhost:3000
+
+# Storage locations
+QUEUE_DATA_DIR=data
+WHATSAPP_AUTH_DIR=auth_info_baileys

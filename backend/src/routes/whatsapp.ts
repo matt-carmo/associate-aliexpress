@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { config as whatsappConfig } from "../config/whatsapp.js";
 import { getConnectionStatus, getQRCode, getSocket, sendImage, sendText } from "../services/whatsapp.js";
+import { getDb } from "../storage/database.js";
 import { getQueueStats } from "../storage/queueStorage.js";
 
 export const whatsappRouter = Router();
@@ -27,6 +28,32 @@ whatsappRouter.get("/status", async (_req, res) => {
     },
     lastError: stats.lastError,
   });
+});
+
+whatsappRouter.get("/target", (_req, res) => {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get("whatsapp_target") as { value: string } | undefined;
+
+  const target = row?.value ?? whatsappConfig.to ?? "";
+  res.json({ target });
+});
+
+whatsappRouter.put("/target", (req, res) => {
+  const { target } = req.body ?? {};
+
+  if (typeof target !== "string") {
+    return res.status(400).json({ error: "target must be a string" });
+  }
+
+  const db = getDb();
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(
+    "whatsapp_target",
+    target
+  );
+
+  res.json({ target });
 });
 
 whatsappRouter.post("/send", async (req, res) => {

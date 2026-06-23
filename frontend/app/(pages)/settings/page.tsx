@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { getWhatsAppTarget, saveWhatsAppTarget } from "@/lib/backendApi";
 
 
 export default function SettingsPage() {
@@ -19,8 +20,7 @@ export default function SettingsPage() {
     process.env.NEXT_PUBLIC_MESSAGING_API_URL || "http://localhost:4000";
 
   useEffect(() => {
-    const stored = localStorage.getItem("whatsapp_target") ?? "";
-    setTarget(stored);
+    getWhatsAppTarget().then(setTarget);
   }, []);
 
   useEffect(() => {
@@ -53,9 +53,10 @@ export default function SettingsPage() {
   }, [qrCode]);
 
   function saveTarget() {
-    localStorage.setItem("whatsapp_target", target);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    saveWhatsAppTarget(target).then(() => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    });
   }
 
   async function sendTestMessage() {

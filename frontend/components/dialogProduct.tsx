@@ -9,6 +9,7 @@ import { Product } from "./product";
 import type { Product as ProductType } from "@/types/aliexpress";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
+import { getWhatsAppTarget } from "@/lib/backendApi";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import Image from "next/image";
@@ -101,7 +102,7 @@ ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_i
                   })
                 );
 
-                const whatsappTarget = localStorage.getItem("whatsapp_target");
+                const whatsappTarget = await getWhatsAppTarget();
                 if (whatsappTarget) {
                   promises.push(
                     fetch(`${messagingBaseUrl}/whatsapp/send`, {
