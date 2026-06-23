@@ -2,7 +2,6 @@ import {
   claimNextItem,
   getQueue,
   getQueueStats,
-  getQueueSettings,
   markAsFailed,
   markAsSent,
   updateQueueItem,
@@ -133,7 +132,6 @@ async function tick() {
 async function logStatus() {
   try {
     const stats = getQueueStats();
-    const settings = getQueueSettings();
 
     const parts: string[] = [];
     if (stats.pending > 0) parts.push(`${stats.pending} pending`);
@@ -142,8 +140,7 @@ async function logStatus() {
 
     if (parts.length > 0) {
       const queueDesc = parts.join(", ");
-      const activeWindow = `${settings.activeStart}-${settings.activeEnd}`;
-      console.log(`[Scheduler] Queue: ${queueDesc} | Window: ${activeWindow}`);
+      console.log(`[Scheduler] Queue: ${queueDesc}`);
     }
 
     if (stats.nextScheduledAt) {

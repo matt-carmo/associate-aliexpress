@@ -12,8 +12,6 @@ export type { QueueStatus } from "./queueTypes.js";
 const DEFAULT_SETTINGS: QueueScheduleSettings = {
   minIntervalMinutes: 5,
   maxIntervalMinutes: 7,
-  activeStart: "08:00",
-  activeEnd: "22:00",
 };
 
 export function getQueueSettings(): QueueScheduleSettings {
@@ -30,8 +28,6 @@ export function getQueueSettings(): QueueScheduleSettings {
   return {
     minIntervalMinutes: Number(map.min_interval_minutes) ?? DEFAULT_SETTINGS.minIntervalMinutes,
     maxIntervalMinutes: Number(map.max_interval_minutes) ?? DEFAULT_SETTINGS.maxIntervalMinutes,
-    activeStart: map.active_start ?? DEFAULT_SETTINGS.activeStart,
-    activeEnd: map.active_end ?? DEFAULT_SETTINGS.activeEnd,
   };
 }
 
@@ -48,12 +44,7 @@ export function setQueueSettings(settings: Partial<QueueScheduleSettings>) {
     if (settings.maxIntervalMinutes !== undefined) {
       upsert.run("max_interval_minutes", String(settings.maxIntervalMinutes));
     }
-    if (settings.activeStart !== undefined) {
-      upsert.run("active_start", settings.activeStart);
-    }
-    if (settings.activeEnd !== undefined) {
-      upsert.run("active_end", settings.activeEnd);
-    }
+
   });
 
   tx();
@@ -332,6 +323,8 @@ export function updateQueueItem(
   if (updates.manualScheduledAt !== undefined) {
     fields.push("manual_scheduled_at = ?");
     values.push(updates.manualScheduledAt);
+    fields.push("scheduled_at = ?");
+    values.push(updates.manualScheduledAt);
   }
   if (updates.retryCount !== undefined) {
     fields.push("retry_count = ?");
@@ -480,47 +473,12 @@ export function cleanupOrphanedProcessing() {
   ).run(Date.now(), staleThreshold);
 }
 
-function parseTimeToMinutes(value: string): number {
-  const [rawHours, rawMinutes] = value.split(":");
-  const hours = Number.parseInt(rawHours || "0", 10);
-  const minutes = Number.parseInt(rawMinutes || "0", 10);
-  return (
-    Math.max(0, Math.min(23, hours)) * 60 + Math.max(0, Math.min(59, minutes))
-  );
-}
-
-function withTime(base: Date, minutesOfDay: number): Date {
-  const next = new Date(base);
-  next.setHours(0, 0, 0, 0);
-  next.setMinutes(minutesOfDay);
-  return next;
-}
-
 function isSameSlot(
   left: number,
   right: number,
   windowMs = 60 * 1000
 ): boolean {
   return Math.abs(left - right) < windowMs;
-}
-
-function normalizeToActiveWindow(
-  timestamp: number,
-  settings: QueueScheduleSettings
-): number {
-  const date = new Date(timestamp);
-  const activeStartMinutes = parseTimeToMinutes(settings.activeStart);
-  const activeEndMinutes = parseTimeToMinutes(settings.activeEnd);
-  const start = withTime(date, activeStartMinutes);
-  const end = withTime(date, activeEndMinutes);
-
-  if (date < start) return start.getTime();
-  if (date > end) {
-    const nextDay = new Date(date);
-    nextDay.setDate(nextDay.getDate() + 1);
-    return withTime(nextDay, activeStartMinutes).getTime();
-  }
-  return timestamp;
 }
 
 function getRandomIntervalMs(settings: QueueScheduleSettings): number {
@@ -563,17 +521,13 @@ function resolveSchedule(
 
   const lastAuto = autoSlots.length > 0 ? Math.max(...autoSlots) : 0;
   let candidate = Math.max(now, lastAuto) + getRandomIntervalMs(settings);
-  candidate = normalizeToActiveWindow(candidate, settings);
 
   for (let attempts = 0; attempts < 200; attempts += 1) {
     const hasConflict =
       manualSlots.some((slot) => isSameSlot(slot, candidate)) ||
       autoSlots.some((slot) => isSameSlot(slot, candidate));
     if (!hasConflict) return candidate;
-    candidate = normalizeToActiveWindow(
-      candidate + getRandomIntervalMs(settings),
-      settings
-    );
+    candidate = candidate + getRandomIntervalMs(settings);
   }
 
   return candidate;

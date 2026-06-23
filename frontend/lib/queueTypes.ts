@@ -55,8 +55,6 @@ export type BackendQueueStats = {
 export type BackendQueueScheduleSettings = {
   minIntervalMinutes: number;
   maxIntervalMinutes: number;
-  activeStart: string;
-  activeEnd: string;
 };
 
 export type BackendHealth = {
@@ -72,6 +70,4 @@ export type BackendHealth = {
 export type QueueScheduleSettings = {
   minIntervalMinutes: number;
   maxIntervalMinutes: number;
-  activeStart: string;
-  activeEnd: string;
 };

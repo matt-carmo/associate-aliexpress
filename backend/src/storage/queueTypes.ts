@@ -33,8 +33,6 @@ export type DeadLetterItem<T = unknown> = {
 export type QueueScheduleSettings = {
   minIntervalMinutes: number;
   maxIntervalMinutes: number;
-  activeStart: string;
-  activeEnd: string;
 };
 
 export type QueueStats = {

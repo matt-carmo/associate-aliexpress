@@ -66,9 +66,7 @@ export function getDb(): Database.Database {
 
     INSERT OR IGNORE INTO settings (key, value) VALUES
       ('min_interval_minutes', '5'),
-      ('max_interval_minutes', '7'),
-      ('active_start', '08:00'),
-      ('active_end', '22:00');
+      ('max_interval_minutes', '7');
   `);
 
   try {
