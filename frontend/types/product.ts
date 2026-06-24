@@ -1,12 +1,13 @@
 /**
- * Canonical AliExpress Product type — single source of truth.
+ * Canonical product types for all marketplaces.
  *
  * Used across:
  *  - app/interfaces/product.ts (re-exports)
- *
- * If you add or remove a field, all consumers pick up the change automatically.
+ *  - components/product.tsx
+ *  - components/dialogProduct.tsx
  */
-export interface AliExpressProduct {
+
+export interface AliProduct {
     app_sale_price: string;
     original_price: string;
     product_detail_url: string;
@@ -46,6 +47,11 @@ export interface AliExpressProduct {
 }
 
 /**
- * @deprecated Use `AliExpressProduct` instead. Kept for backward-compat.
+ * @deprecated Use `AliProduct` instead. Kept for backward-compat.
  */
-export type Product = AliExpressProduct;
+export type AliExpressProduct = AliProduct;
+
+/**
+ * @deprecated Use `AliProduct` instead. Kept for backward-compat.
+ */
+export type Product = AliProduct;

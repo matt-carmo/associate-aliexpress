@@ -6,7 +6,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Product } from "./product";
-import type { Product as ProductType } from "@/types/aliexpress";
+import type { Product as ProductType } from "@/types/product";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { getWhatsAppTarget } from "@/lib/backendApi";
@@ -31,7 +31,7 @@ export const DialogProduct = (props: { product: ProductType }): JSX.Element => {
             setLoadingTextArea(true);
             try {
               const response = await fetch(
-                `/api/aliexpress?type=affiliate-link&product_detail_url=${encodeURIComponent(product.product_detail_url)}`
+                `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(product.product_detail_url)}`
               );
               console.log(`response`, response);
               if (!response.ok) {

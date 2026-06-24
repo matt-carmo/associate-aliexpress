@@ -5,7 +5,7 @@ export const getAliExpressConfig = () => {
     const appSecret = process.env.ALIEXPRESS_APP_SECRET;
 
     if (!appKey || !appSecret) {
-        throw new Error("Missing AliExpress credentials. Set ALIEXPRESS_APP_KEY and ALIEXPRESS_APP_SECRET.");
+        throw new Error("Missing marketplace credentials. Set ALIEXPRESS_APP_KEY and ALIEXPRESS_APP_SECRET.");
     }
 
     return { appKey, appSecret };

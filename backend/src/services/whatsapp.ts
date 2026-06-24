@@ -72,7 +72,7 @@ async function init() {
 
       const newSock = makeWASocket({
         auth: auth.state,
-        browser: Browsers.ubuntu("AliExpress Affiliate"),
+        browser: Browsers.ubuntu("Affiliate Platform"),
         markOnlineOnConnect: false,
         syncFullHistory: false,
       });

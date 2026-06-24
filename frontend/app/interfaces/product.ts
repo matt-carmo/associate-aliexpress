@@ -1,3 +1,3 @@
-import type { AliExpressProduct } from "@/types/aliexpress";
+import type { AliProduct } from "@/types/product";
 
-export type Product = AliExpressProduct;
+export type Product = AliProduct;

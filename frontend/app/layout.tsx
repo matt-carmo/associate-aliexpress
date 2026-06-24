@@ -17,8 +17,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AliExpress Viral Tech Discovery",
-  description: "A conversion-first AliExpress affiliate discovery engine for Telegram tech channels.",
+  title: "Affiliate Viral Tech Discovery",
+  description: "A conversion-first affiliate discovery engine for Telegram tech channels.",
 };
 
 export default function RootLayout({

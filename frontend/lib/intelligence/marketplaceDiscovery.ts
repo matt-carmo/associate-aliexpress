@@ -1,4 +1,5 @@
 import type { ProductIntelligence } from "./product-intelligence";
+import { SHOPEE_DISCOVERY_SOURCES } from "./shopeeDiscovery";
 
 export type DiscoveryMode = "discover" | "viral-tech" | "telegram-candidates";
 
@@ -124,11 +125,16 @@ export const DISCOVERY_SOURCES: DiscoverySource[] = [
   },
 ];
 
+export const ALL_DISCOVERY_SOURCES: DiscoverySource[] = [
+  ...DISCOVERY_SOURCES,
+  ...SHOPEE_DISCOVERY_SOURCES,
+];
+
 export const DISCOVERY_MODE_CONFIG: Record<DiscoveryMode, DiscoveryModeConfig> = {
   discover: {
     title: "Discover",
     subtitle: "Marketplace-style discovery for high-CTR tech products with broad reach.",
-    eyebrow: "AliExpress-style discovery feed",
+    eyebrow: "Marketplace-style discovery feed",
     strictTelegramGate: false,
     candidateFloor: 44,
     sourceIds: DISCOVERY_SOURCES.map((source) => source.id),
@@ -177,7 +183,8 @@ export const buildDiscoveryUrl = (
     params.set("strict", "true");
   }
 
-  return `/api/aliexpress?${params.toString()}`;
+  const basePath = source.id.startsWith("shopee-") ? "/api/shopee" : "/api/ali";
+  return `${basePath}?${params.toString()}`;
 };
 
 export type DiscoveryProduct = Partial<ProductIntelligence> & {

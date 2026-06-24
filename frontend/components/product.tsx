@@ -11,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import type { Product as ProductType } from "@/types/aliexpress";
+import type { Product as ProductType } from "@/types/product";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getQualityBadge = (product: any) => {

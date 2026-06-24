@@ -189,6 +189,50 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     return fallbackMatch?.[1] || "";
   };
 
+  const isShopeeUrl = (url: string): boolean => {
+    return /shopee\.\w+/.test(url) || /cf\.shopee\.\w+/.test(url);
+  };
+
+  const extractShopeeItemId = (url: string): string => {
+    const patterns = [
+      /\/product\/(\d+)\/(\d+)/i,
+      /-i\.(\d+)\.(\d+)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match?.[2]) return match[2];
+    }
+    return "";
+  };
+
+  const mapShopeeProductToDiscovery = (shopeeProduct: Record<string, unknown>, fallback: DiscoveryProduct): DiscoveryProduct => {
+    const price = parseFloat(String(shopeeProduct.price || "0"));
+    const discountRate = Number(shopeeProduct.priceDiscountRate || 0);
+    const originalPrice = discountRate > 0 ? price / (1 - discountRate / 100) : price;
+    const productCatIds = Array.isArray(shopeeProduct.productCatIds) ? shopeeProduct.productCatIds : [];
+
+    return {
+      ...fallback,
+      productId: String(shopeeProduct.itemId ?? fallback.productId),
+      title: String(shopeeProduct.productName || fallback.title),
+      imageUrl: String(shopeeProduct.imageUrl || fallback.imageUrl),
+      detailUrl: String(shopeeProduct.productLink || fallback.detailUrl),
+      categoryId: (productCatIds[0] as number) || fallback.categoryId,
+      categoryName: "",
+      shopId: (shopeeProduct.shopId as number) || fallback.shopId,
+      price: price || fallback.price,
+      originalPrice: originalPrice || fallback.originalPrice,
+      discountPercent: discountRate || fallback.discountPercent,
+      rating: parseFloat(String(shopeeProduct.ratingStar || "0")) || fallback.rating,
+      salesVolume: Number(shopeeProduct.sales || 0) || fallback.salesVolume,
+      commissionRate: parseFloat(String(shopeeProduct.commissionRate || "0")) * 100 || fallback.commissionRate,
+      shippingDays: 30,
+      hasVideo: false,
+      promoCode: undefined,
+      isHotProduct: Number(shopeeProduct.sales || 0) >= 1000,
+    };
+  };
+
   const generateText = (template: TemplateKey, product: DiscoveryProduct, link: string) => {
     return TEMPLATES[template].generate(product, link);
   };
@@ -209,7 +253,8 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     setScheduledDate("");
     setScheduledTime("");
 
-    const productId = extractProductId(rawUrl);
+    const isShopee = isShopeeUrl(rawUrl);
+    const productId = isShopee ? extractShopeeItemId(rawUrl) : extractProductId(rawUrl);
     if (!productId) {
       setModalStatus("Sem product_id. Use um link de produto valido.");
       return;
@@ -222,19 +267,26 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const response = await fetch(
-        `/api/aliexpress?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`,
-        { signal: controller.signal }
-      );
+      const apiUrl = isShopee
+        ? `/api/shopee?type=product-details&item_id=${encodeURIComponent(productId)}`
+        : `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
+      const response = await fetch(apiUrl, { signal: controller.signal });
       if (response.ok) {
         const payload = await response.json();
         if (payload.product) {
-          hydrated = mapDetailsToProduct(payload.product, {
-            productId,
-            title: "Produto sem titulo",
-            imageUrl: "",
-            detailUrl: rawUrl,
-          });
+          hydrated = isShopee
+            ? mapShopeeProductToDiscovery(payload.product, {
+                productId,
+                title: "Produto sem titulo",
+                imageUrl: "",
+                detailUrl: rawUrl,
+              })
+            : mapDetailsToProduct(payload.product, {
+                productId,
+                title: "Produto sem titulo",
+                imageUrl: "",
+                detailUrl: rawUrl,
+              });
         }
       }
     } catch {
@@ -244,12 +296,13 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     }
 
     try {
-      const linkResponse = await fetch(
-        `/api/aliexpress?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`
-      );
+      const linkApiUrl = isShopee
+        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(rawUrl)}`
+        : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
+      const linkResponse = await fetch(linkApiUrl);
       if (linkResponse.ok) {
         const linkPayload = await linkResponse.json();
-        promotionLink = linkPayload.promotionLink || "";
+        promotionLink = linkPayload.promotionLink || linkPayload.shortLink || "";
       }
     } catch {
       // Affiliate link not available
@@ -428,7 +481,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           <Input
             value={productUrlInput}
             onChange={(event) => setProductUrlInput(event.target.value)}
-            placeholder="Link do produto (ex: https://pt.aliexpress.com/item/1005001234567890.html)"
+            placeholder="Link do produto (AliExpress ou Shopee: https://shopee.com.br/product/123/456)"
           />
         </div>
         <Button onClick={handleAddProduct}>

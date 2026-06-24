@@ -2,6 +2,10 @@
 ALIEXPRESS_APP_KEY=Your_AliExpress_App_Key_Here
 ALIEXPRESS_APP_SECRET=Your_AliExpress_App_Secret_Here
 
+# Shopee Affiliate API
+SHOPEE_APP_ID=Your_Shopee_App_ID_Here
+SHOPEE_APP_SECRET=Your_Shopee_App_Secret_Here
+
 # FRONTEND
 NEXT_PUBLIC_MESSAGING_API_URL=Your_Frontend_Messaging_API_URL_Here
 # Telegram

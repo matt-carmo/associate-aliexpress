@@ -1,6 +1,6 @@
-# Associate AliExpress
+# Associate Affiliate
 
-Platform for managing and automatically publishing affiliate products from AliExpress to **Telegram** and **WhatsApp**.
+Platform for managing and automatically publishing affiliate products from AliExpress and Shopee to **Telegram** and **WhatsApp**.
 
 ## Architecture
 
@@ -16,6 +16,7 @@ The project is a monorepo containing two applications:
 * **Node.js** >= 20
 * **npm** >= 10
 * Affiliate account on AliExpress Portals (to obtain App Key and App Secret)
+* Affiliate account on Shopee (to obtain App ID and App Secret)
 * Telegram Bot (create via @BotFather)
 * WhatsApp account for connection through Baileys (QR Code)
 
@@ -25,7 +26,7 @@ The project is a monorepo containing two applications:
 
 ```bash
 git clone <repository-url>
-cd associate-aliexpress
+cd associate-affiliate
 ```
 
 ### 2. Backend
@@ -41,6 +42,8 @@ Edit the `backend/.env` file with your credentials:
 ```env
 ALIEXPRESS_APP_KEY=your_app_key
 ALIEXPRESS_APP_SECRET=your_app_secret
+SHOPEE_APP_ID=your_shopee_app_id
+SHOPEE_APP_SECRET=your_shopee_app_secret
 TELEGRAM_BOT_TOKEN=telegram_bot_token
 TELEGRAM_BOT_ID=bot_id
 TELEGRAM_CHAT_ID=telegram_chat_id
@@ -62,6 +65,8 @@ Edit the `frontend/.env` file:
 ```env
 ALIEXPRESS_APP_KEY=your_app_key
 ALIEXPRESS_APP_SECRET=your_app_secret
+SHOPEE_APP_ID=your_shopee_app_id
+SHOPEE_APP_SECRET=your_shopee_app_secret
 NEXT_PUBLIC_MESSAGING_API_URL=http://localhost:4000
 TELEGRAM_CHAT_ID=telegram_chat_id
 ```
@@ -104,6 +109,8 @@ cd frontend && npm run build && npm start
 | ----------------------- | ---------------------------------------------------------------- | -------- |
 | `ALIEXPRESS_APP_KEY`    | AliExpress affiliate API App Key                                 | Yes      |
 | `ALIEXPRESS_APP_SECRET` | AliExpress affiliate API App Secret                              | Yes      |
+| `SHOPEE_APP_ID`         | Shopee affiliate API App ID                                      | Yes      |
+| `SHOPEE_APP_SECRET`     | Shopee affiliate API App Secret                                  | Yes      |
 | `TELEGRAM_BOT_TOKEN`    | Telegram bot token (provided by @BotFather)                      | Yes      |
 | `TELEGRAM_BOT_ID`       | Telegram bot ID                                                  | No       |
 | `TELEGRAM_CHAT_ID`      | Telegram chat/group ID for publishing                            | Yes      |
@@ -119,6 +126,8 @@ cd frontend && npm run build && npm start
 | ------------------------------- | ------------------------------------------------------- | -------- |
 | `ALIEXPRESS_APP_KEY`            | AliExpress affiliate API App Key                        | Yes      |
 | `ALIEXPRESS_APP_SECRET`         | AliExpress affiliate API App Secret                     | Yes      |
+| `SHOPEE_APP_ID`                 | Shopee affiliate API App ID                             | Yes      |
+| `SHOPEE_APP_SECRET`             | Shopee affiliate API App Secret                         | Yes      |
 | `NEXT_PUBLIC_MESSAGING_API_URL` | Backend API base URL (default: `http://localhost:4000`) | Yes      |
 | `TELEGRAM_CHAT_ID`              | Telegram chat ID                                        | No       |
 
@@ -129,6 +138,7 @@ cd frontend && npm run build && npm start
 * **WhatsApp Connection** — scan the QR Code on the Settings screen to connect WhatsApp
 * **Multi-channel Delivery** — each product is sent to Telegram and WhatsApp with individual retry handling per channel
 * **AliExpress Affiliate API** — search products and generate affiliate links
+* **Shopee Affiliate API** — search products, generate short links, and track conversions
 
 ## API Endpoints (Backend)
 

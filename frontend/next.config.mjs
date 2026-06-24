@@ -2,7 +2,11 @@
 const nextConfig = {
     output: "standalone",
     images: {
-        domains: ['ae-pic-a1.aliexpress-media.com'],
+        remotePatterns: [
+            { protocol: 'https', hostname: 'ae-pic-a1.aliexpress-media.com' },
+            { protocol: 'https', hostname: 'cf.shopee.com.br' },
+            { protocol: 'https', hostname: 'down-br.img.susercontent.com' },
+        ],
     },
     webpack: (config, { isServer }) => {
         if (isServer) {
