@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  },
+  "scripts": {
+    "dev:shopee-intercept": "tsx watch shopee-intercept.ts",
+    "dev:shopee-login": "tsx watch shopee-login-intercept.ts",
+    "dev:chrome-login": "tsx watch chrome-login.ts"
+  }
+}

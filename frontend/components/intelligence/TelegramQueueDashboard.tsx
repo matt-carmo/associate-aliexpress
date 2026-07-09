@@ -80,26 +80,30 @@ const TEMPLATES: Record<TemplateKey, {
 }> = {
   padrao: {
     label: "Padrão",
-    generate: (product, link) =>
-      [
+    generate: (product, link) => {
+      const priceLabel = product.priceMax && product.priceMax > (product.price || 0) ? "A partir de: R$" : "Por: R$";
+      return [
         `🔥 ${product.title}`,
         `❌ De: <s>R$ ${product.originalPrice?.toFixed(2) ?? "?"}</s>`,
-        `✅ Por: R$ ${product.price?.toFixed(2) ?? "?"} 😱😱`,
+        `✅ ${priceLabel} ${product.price?.toFixed(2) ?? "?"} 😱😱`,
         ...(product.promoCode ? [`\n🏷️ <b>Cupom</b>: <code>${product.promoCode}</code>`] : []),
         "",
         `🛒 ${link}`,
         "",
         "😎🚀 Para mais ofertas, acesse: https://t.me/top_ofertas_online"
-      ].join("\n"),
+      ].join("\n");
+    },
   },
   simples: {
     label: "Simples",
-    generate: (product, link) =>
-      [
+    generate: (product, link) => {
+      const priceLabel = product.priceMax && product.priceMax > (product.price || 0) ? "A partir de R$" : "R$";
+      return [
         `📦 ${product.title}`,
-        `💰 R$ ${product.price?.toFixed(2) ?? "?"}`,
+        `💰 ${priceLabel} ${product.price?.toFixed(2) ?? "?"}`,
         `🔗 ${link}`,
-      ].join("\n"),
+      ].join("\n");
+    },
   },
   com_cupom: {
     label: "Com Cupom",
@@ -107,12 +111,13 @@ const TEMPLATES: Record<TemplateKey, {
       if (!product.promoCode) {
         return TEMPLATES.padrao.generate(product, link);
       }
+      const priceLabel = product.priceMax && product.priceMax > (product.price || 0) ? "A partir de: R$" : "Por: R$";
       return [
         "🏷️ CUPOM ESPECIAL 🏷️",
         "",
         `🔥 ${product.title}`,
         `❌ De: <s>R$ ${product.originalPrice?.toFixed(2) ?? "?"}</s>`,
-        `✅ Por: R$ ${product.price?.toFixed(2) ?? "?"}`,
+        `✅ ${priceLabel} ${product.price?.toFixed(2) ?? "?"}`,
         `🎫 Cupom: <code>${product.promoCode}</code>`,
         "",
         `🛒 ${link}`,
@@ -123,19 +128,21 @@ const TEMPLATES: Record<TemplateKey, {
   },
   relampago: {
     label: "Promoção Relâmpago",
-    generate: (product, link) =>
-      [
+    generate: (product, link) => {
+      const priceLabel = product.priceMax && product.priceMax > (product.price || 0) ? "A partir de: R$" : "Por: R$";
+      return [
         "⚡ PROMOÇÃO RELÂMPAGO ⚡",
         "",
         `📱 ${product.title}`,
         `💥 De: <s>R$ ${product.originalPrice?.toFixed(2) ?? "?"}</s>`,
-        `💥 Por: R$ ${product.price?.toFixed(2) ?? "?"}`,
+        `💥 ${priceLabel} ${product.price?.toFixed(2) ?? "?"}`,
         "📉 Desconto imperdível!",
         "",
         `🛒 ${link}`,
         "",
         "🚨 Corra, estoque limitado!",
-      ].join("\n"),
+      ].join("\n");
+    },
   },
 };
 
@@ -206,9 +213,11 @@ export const TelegramQueueDashboard = (): JSX.Element => {
   };
 
   const mapShopeeProductToDiscovery = (shopeeProduct: Record<string, unknown>, fallback: DiscoveryProduct): DiscoveryProduct => {
-    const price = parseFloat(String(shopeeProduct.price || "0"));
+    const priceMin = parseFloat(String(shopeeProduct.priceMin || shopeeProduct.price || "0"));
+    const priceMax = parseFloat(String(shopeeProduct.priceMax || "0"));
+    const price = priceMin;
     const discountRate = Number(shopeeProduct.priceDiscountRate || 0);
-    const originalPrice = discountRate > 0 ? price / (1 - discountRate / 100) : price;
+    const originalPrice = discountRate > 0 ? priceMin / (1 - discountRate / 100) : priceMin;
     const productCatIds = Array.isArray(shopeeProduct.productCatIds) ? shopeeProduct.productCatIds : [];
 
     return {
@@ -221,6 +230,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       categoryName: "",
       shopId: (shopeeProduct.shopId as number) || fallback.shopId,
       price: price || fallback.price,
+      priceMax: priceMax || undefined,
       originalPrice: originalPrice || fallback.originalPrice,
       discountPercent: discountRate || fallback.discountPercent,
       rating: parseFloat(String(shopeeProduct.ratingStar || "0")) || fallback.rating,
@@ -287,6 +297,13 @@ export const TelegramQueueDashboard = (): JSX.Element => {
                 imageUrl: "",
                 detailUrl: rawUrl,
               });
+
+          if (isShopee) {
+            const periodEnd = payload.product.periodEndTime ? payload.product.periodEndTime * 1000 : 0;
+            if (periodEnd && periodEnd <= Date.now()) {
+              setModalStatus("⚠️ Oferta Shopee expirada. Confirme a URL antes de continuar.");
+            }
+          }
         }
       }
     } catch {
@@ -296,8 +313,9 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     }
 
     try {
+      const cleanOrigin = isShopee ? rawUrl.split("?")[0].split("&")[0] : rawUrl;
       const linkApiUrl = isShopee
-        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(rawUrl)}`
+        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(cleanOrigin)}`
         : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
       const linkResponse = await fetch(linkApiUrl);
       if (linkResponse.ok) {
@@ -573,6 +591,23 @@ export const TelegramQueueDashboard = (): JSX.Element => {
                     className="max-w-60 mx-auto aspect-square object-cover"
                   />
                   <div className="p-3 space-y-1">
+                    {modalPreview.price ? (
+                      <div className="text-lg font-semibold">
+                        {modalPreview.priceMax && modalPreview.priceMax > modalPreview.price
+                          ? `A partir de R$ ${modalPreview.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                          : `R$ ${modalPreview.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                        }
+                        {modalPreview.discountPercent ? (
+                          <span className="text-sm text-green-500 ml-2">−{modalPreview.discountPercent}%</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {modalPreview.rating || modalPreview.salesVolume ? (
+                      <div className="text-sm text-muted-foreground">
+                        {modalPreview.rating ? `⭐ ${modalPreview.rating}` : ""}
+                        {modalPreview.salesVolume ? ` · 📦 ${modalPreview.salesVolume.toLocaleString()} vendas` : ""}
+                      </div>
+                    ) : null}
                     {captionText ? (
                       <div
                         className="text-sm whitespace-pre-wrap break-words leading-relaxed [&_del]:text-muted-foreground"

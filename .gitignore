@@ -20,3 +20,9 @@ yarn-error.log*
 # backend data
 data/
 auth_info_baileys/
+
+.*
+
+# chrome mcp profile
+.chrome-profile/
+.chrome-mcp/

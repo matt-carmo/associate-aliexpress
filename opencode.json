@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "chrome": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chrome",
+        "--executable-path",
+        "/usr/bin/google-chrome",
+        "--user-data-dir",
+        ".chrome-profile",
+        "--viewport-size",
+        "1920x1080",
+        "--user-agent",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "--init-script",
+        "scripts/brave-stealth.js",
+        "--caps",
+        "vision",
+        "--timeout-action",
+        "15000",
+        "--timeout-navigation",
+        "30000",
+        "--allowed-hosts",
+        "*",
+        "--output-dir",
+        ".chrome-mcp",
+        "--save-session"
+      ],
+      "enabled": true,
+      "environment": {
+        "TZ": "America/Sao_Paulo",
+        "LANG": "pt_BR.UTF-8"
+      }
+    }
+  }
+}

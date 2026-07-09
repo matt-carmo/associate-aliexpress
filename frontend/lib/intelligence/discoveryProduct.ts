@@ -7,6 +7,7 @@ export type DiscoveryProduct = {
   categoryName?: string;
   shopId?: number | string;
   price?: number;
+  priceMax?: number;
   originalPrice?: number;
   discountPercent?: number;
   rating?: number;
