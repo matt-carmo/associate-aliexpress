@@ -8,6 +8,7 @@ SHOPEE_APP_SECRET=Your_Shopee_App_Secret_Here
 
 # FRONTEND
 NEXT_PUBLIC_MESSAGING_API_URL=Your_Frontend_Messaging_API_URL_Here
+NEXT_PUBLIC_SCRAPER_API_URL=http://localhost:4001
 # Telegram
 TELEGRAM_CHAT_ID=Your_Telegram_Chat_ID_Here
 TELEGRAM_BOT_TOKEN=Your_Telegram_Bot_Token_Here

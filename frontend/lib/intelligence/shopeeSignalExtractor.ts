@@ -1,5 +1,5 @@
 import type { ExtractedSignals } from "./signalExtractor";
-import type { ShopeeProductOffer } from "@/types/shopee";
+import type { ShopeeProductOffer, ShopeePdpData } from "@/types/shopee";
 
 const parsePrice = (price: string): number => {
     const cleaned = price.replace(/[^\d.]/g, "");
@@ -10,15 +10,20 @@ const parseCommissionRate = (rate: string): number => {
     return parseFloat(rate) * 100 || 0;
 };
 
-export const extractShopeeSignals = (product: Partial<ShopeeProductOffer>): ExtractedSignals => {
-    const salePrice = parsePrice(product.price || "0");
-    const discountPercent = product.priceDiscountRate || 0;
-    const originalPrice = discountPercent > 0
-        ? salePrice / (1 - discountPercent / 100)
-        : salePrice;
+export const extractShopeeSignals = (
+    product: Partial<ShopeeProductOffer>,
+    pdpData?: ShopeePdpData,
+): ExtractedSignals => {
+    const salePrice = pdpData?.price ?? parsePrice(product.price || "0");
+    const discountPercent = pdpData?.discountPercent ?? product.priceDiscountRate ?? 0;
+    const originalPrice = pdpData?.priceBeforeDiscount ?? (
+        discountPercent > 0
+            ? salePrice / (1 - discountPercent / 100)
+            : salePrice
+    );
     const commissionRate = parseCommissionRate(product.commissionRate || "0");
     const salesVolume = product.sales || 0;
-    const rating = parseFloat(product.ratingStar || "0");
+    const rating = pdpData?.ratingStar ?? parseFloat(product.ratingStar || "0");
     const shippingDays = 30;
 
     let priceTier: "budget" | "mid" | "premium" = "mid";
@@ -53,5 +58,6 @@ export const extractShopeeSignals = (product: Partial<ShopeeProductOffer>): Extr
 };
 
 export const extractShopeeSignalsBatch = (
-    products: Partial<ShopeeProductOffer>[]
-): ExtractedSignals[] => products.map(extractShopeeSignals);
+    products: Partial<ShopeeProductOffer>[],
+    pdpMap?: Map<number, ShopeePdpData>,
+): ExtractedSignals[] => products.map((p) => extractShopeeSignals(p, pdpMap?.get(p.itemId ?? 0)));

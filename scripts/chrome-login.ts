@@ -59,3 +59,4 @@ export async function page() {
 
   return page;
 }
+page()

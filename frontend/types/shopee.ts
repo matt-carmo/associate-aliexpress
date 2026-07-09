@@ -84,6 +84,29 @@ export interface ShopeeConversionReport {
     }>;
 }
 
+export interface ShopeePdpData {
+  itemId: number;
+  shopId: number;
+  title: string;
+  currency: string;
+  price: number;
+  priceMax?: number;
+  priceBeforeDiscount: number;
+  priceBeforeDiscountMax?: number;
+  discountPercent: number;
+  discounts: Array<{
+    type: number;
+    amount: number;
+    source: string;
+  }>;
+  hasStock: boolean;
+  installmentMonths?: number;
+  installmentMonthly?: number;
+  ratingStar?: number;
+  sourceUrl: string;
+  capturedAt: number;
+}
+
 export interface ShopeeConversionReportResponse {
     data: {
         conversionReport: {

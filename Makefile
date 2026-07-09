@@ -11,4 +11,7 @@ env:
 	@cp "$(ENV_FILE)" backend/.env
 	@cp "$(ENV_FILE)" frontend/.env
 	@cp "$(ENV_FILE)" scripts/.env
+	@if [ ! -f scraper/.env ] && [ -f scraper/.env.example ]; then \
+		cp scraper/.env.example scraper/.env; \
+	fi
 	@echo "✅ Environment file updated successfully."
