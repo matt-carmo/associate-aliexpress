@@ -1,11 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, ChevronDown, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import {
@@ -16,13 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DiscoveryProduct } from "@/lib/intelligence/discoveryProduct";
-import type { BackendQueueItem } from "@/lib/queueTypes";
+import type { BackendQueueItem, BackendQueueScheduleSettings } from "@/lib/queueTypes";
 import {
   enqueueItem,
   removeQueueItem,
   updateQueueItem,
   clearQueue,
   getWhatsAppTarget,
+  saveQueueSettings,
 } from "@/lib/backendApi";
 
 const parseNumber = (value?: string | number): number => {
@@ -202,6 +211,12 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     pending: number;
     failed: number;
   } | null>(null);
+  const [scheduleSettings, setScheduleSettings] = useState<BackendQueueScheduleSettings | null>(null);
+  const [minInterval, setMinInterval] = useState(5);
+  const [maxInterval, setMaxInterval] = useState(7);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsStatus, setSettingsStatus] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [lastStatus, setLastStatus] = useState("Queue ready.");
   const [productUrlInput, setProductUrlInput] = useState("");
   const [addStatus, setAddStatus] = useState("");
@@ -230,6 +245,12 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         const data = await res.json();
         setQueue(data.queue ?? []);
         setQueueStats(data.stats ?? null);
+        const s = data.settings as BackendQueueScheduleSettings | undefined;
+        if (s) {
+          setScheduleSettings(s);
+          setMinInterval((prev) => (prev ? prev : s.minIntervalMinutes));
+          setMaxInterval((prev) => (prev ? prev : s.maxIntervalMinutes));
+        }
       }
     } catch {
       // polling error
@@ -599,6 +620,28 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     }
   };
 
+  const handleSaveSettings = async () => {
+    const min = Math.min(minInterval, maxInterval);
+    const max = Math.max(minInterval, maxInterval);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min < 1 || max < 1) {
+      setSettingsStatus("Informe valores válidos (1–60 min).");
+      return;
+    }
+    setSavingSettings(true);
+    try {
+      await saveQueueSettings({ minIntervalMinutes: min, maxIntervalMinutes: max });
+      setScheduleSettings({ minIntervalMinutes: min, maxIntervalMinutes: max });
+      setMinInterval(min);
+      setMaxInterval(max);
+      setSettingsStatus("Intervalo atualizado.");
+      await fetchQueue();
+    } catch {
+      setSettingsStatus("Erro ao salvar intervalo.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -627,6 +670,68 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           Clear queue
         </Button>
       </div>
+
+      <Collapsible
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        className="rounded-md border border-white/10 bg-white/5"
+      >
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 text-left hover:bg-white/5 transition-colors">
+          <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium">Intervalo Random</span>
+          {scheduleSettings ? (
+            <Badge variant="secondary" className="font-mono text-xs">
+              {scheduleSettings.minIntervalMinutes}–{scheduleSettings.maxIntervalMinutes}min
+            </Badge>
+          ) : null}
+          {settingsStatus ? (
+            <span className="text-xs text-muted-foreground truncate ml-auto mr-1">
+              {settingsStatus}
+            </span>
+          ) : null}
+          <ChevronDown
+            className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-white/10">
+          <div className="space-y-3 p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className="font-mono text-xs">
+                  {minInterval} min
+                </Badge>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {maxInterval} min
+                </Badge>
+              </div>
+              <Slider
+                value={[minInterval, maxInterval]}
+                min={1}
+                max={60}
+                step={1}
+                onValueChange={(v) => {
+                  setMinInterval(v[0] ?? 1);
+                  setMaxInterval(v[1] ?? 60);
+                }}
+                aria-label="Intervalo aleatório entre postagens"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {settingsStatus ? (
+                <span className="text-xs text-muted-foreground truncate">{settingsStatus}</span>
+              ) : null}
+              <Button
+                size="sm"
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className="h-8 ml-auto"
+              >
+                {savingSettings ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="flex gap-2">
         <div className="flex-1">

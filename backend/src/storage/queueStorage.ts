@@ -10,8 +10,8 @@ export type { QueueItem, QueueScheduleSettings, QueueStats, DeadLetterItem } fro
 export type { QueueStatus } from "./queueTypes.js";
 
 const DEFAULT_SETTINGS: QueueScheduleSettings = {
-  minIntervalMinutes: 5,
-  maxIntervalMinutes: 7,
+  minIntervalMinutes: 30,
+  maxIntervalMinutes: 45,
 };
 
 export function getQueueSettings(): QueueScheduleSettings {
@@ -514,18 +514,34 @@ function resolveSchedule(
   const manualSlots = queue
     .map((q) => q.manual_scheduled_at)
     .filter((v): v is number => typeof v === "number");
-  const autoSlots = queue
-    .filter((q) => !q.manual_scheduled_at)
-    .map((q) => q.scheduled_at ?? q.created_at)
+  const allSlots = queue
+    .map((q) => (typeof q.manual_scheduled_at === "number"
+      ? q.manual_scheduled_at
+      : q.scheduled_at))
     .filter((v): v is number => typeof v === "number");
 
-  const lastAuto = autoSlots.length > 0 ? Math.max(...autoSlots) : 0;
-  let candidate = Math.max(now, lastAuto) + getRandomIntervalMs(settings);
+  const lastInserted = queue.reduce<Record<string, unknown> | null>(
+    (acc, q) => {
+      if (!acc) return q;
+      const accCreated = (acc.created_at as number) ?? 0;
+      const qCreated = (q.created_at as number) ?? 0;
+      return qCreated > accCreated ? q : acc;
+    },
+    null,
+  );
+  const lastInsertedTime = lastInserted
+    ? (lastInserted.manual_scheduled_at as number) ??
+      (lastInserted.scheduled_at as number) ??
+      (lastInserted.created_at as number) ??
+      0
+    : 0;
+
+  let candidate = Math.max(now, lastInsertedTime) + getRandomIntervalMs(settings);
 
   for (let attempts = 0; attempts < 200; attempts += 1) {
     const hasConflict =
       manualSlots.some((slot) => isSameSlot(slot, candidate)) ||
-      autoSlots.some((slot) => isSameSlot(slot, candidate));
+      allSlots.some((slot) => isSameSlot(slot, candidate));
     if (!hasConflict) return candidate;
     candidate = candidate + getRandomIntervalMs(settings);
   }

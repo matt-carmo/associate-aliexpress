@@ -89,6 +89,16 @@ export async function clearQueue() {
   });
 }
 
+export async function saveQueueSettings(settings: {
+  minIntervalMinutes?: number;
+  maxIntervalMinutes?: number;
+}) {
+  return request<{ message: string }>("/queue", {
+    method: "PUT",
+    body: JSON.stringify({ settings }),
+  });
+}
+
 export async function getHealth() {
   return request<BackendHealth>("/health");
 }
