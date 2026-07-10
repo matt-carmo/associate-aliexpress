@@ -39,6 +39,18 @@ export async function enqueueItem(item: {
   });
 }
 
+export async function enqueueBatch(items: Array<{
+  id: string;
+  data: unknown;
+  caption?: string;
+  target?: string;
+}>) {
+  return request<{ message: string; count: number }>("/queue/batch", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
 export async function getQueue() {
   return request<{
     queue: BackendQueueItem[];

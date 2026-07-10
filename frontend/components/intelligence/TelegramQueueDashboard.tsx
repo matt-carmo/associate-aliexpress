@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Pencil, Trash2, RefreshCw, ChevronDown, Timer } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pencil, Trash2, RefreshCw, ChevronDown, Timer, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
@@ -33,58 +32,14 @@ import {
   getWhatsAppTarget,
   saveQueueSettings,
 } from "@/lib/backendApi";
-
-const parseNumber = (value?: string | number): number => {
-  if (typeof value === "number") return value;
-  if (!value) return 0;
-  const cleaned = String(value).replace(/[^\d.]/g, "");
-  return Number.parseFloat(cleaned) || 0;
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapDetailsToProduct = (
-  details: Record<string, any>,
-  fallback: DiscoveryProduct,
-): DiscoveryProduct => {
-  const ratingRaw = parseNumber(details.evaluate_rate);
-  const rating = ratingRaw > 5 ? ratingRaw / 20 : ratingRaw;
-  const price =
-    parseNumber(details.target_sale_price) ||
-    parseNumber(details.sale_price) ||
-    parseNumber(details.app_sale_price);
-
-  return {
-    ...fallback,
-    productId: details.product_id ?? fallback.productId,
-    title: details.product_title || fallback.title,
-    imageUrl: details.product_main_image_url || fallback.imageUrl,
-    detailUrl: details.product_detail_url || fallback.detailUrl,
-    categoryId:
-      details.second_level_category_id ||
-      details.first_level_category_id ||
-      fallback.categoryId,
-    categoryName:
-      details.second_level_category_name ||
-      details.first_level_category_name ||
-      fallback.categoryName,
-    shopId: details.shop_id || fallback.shopId,
-    price: price || fallback.price,
-    originalPrice:
-      parseNumber(details.target_original_price) ||
-      parseNumber(details.original_price) ||
-      fallback.originalPrice,
-    discountPercent: parseNumber(details.discount) || fallback.discountPercent,
-    rating: rating || fallback.rating,
-    salesVolume: details.lastest_volume ?? fallback.salesVolume,
-    commissionRate:
-      parseNumber(details.commission_rate) || fallback.commissionRate,
-    shippingDays: parseNumber(details.ship_to_days) || fallback.shippingDays,
-    hasVideo: Boolean(details.product_video_url) || fallback.hasVideo,
-    promoCode: details.promo_code_info?.promo_code || fallback.promoCode,
-    isHotProduct:
-      Boolean(details.hot_product_commission_rate) || fallback.isHotProduct,
-  };
-};
+import {
+  hydrateProduct,
+  extractProductId,
+  isShopeeUrl,
+  extractShopeeItemId,
+} from "@/lib/intelligence/hydrateProduct";
+import { TEMPLATES, type TemplateKey } from "@/lib/intelligence/templates";
+import { importBatchCsv, type ImportResult } from "@/lib/intelligence/csvImport";
 
 const MESSAGING_BASE_URL =
   process.env.NEXT_PUBLIC_MESSAGING_API_URL || "http://localhost:4000";
@@ -93,116 +48,6 @@ const formatSchedule = (timestamp?: number): string => {
   if (!timestamp) return "Schedule: not set";
   const date = new Date(timestamp);
   return `Schedule: ${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-};
-
-type TemplateKey = "padrao" | "simples" | "com_cupom" | "relampago";
-
-const TEMPLATES: Record<
-  TemplateKey,
-  {
-    label: string;
-    generate: (product: DiscoveryProduct, link: string) => string;
-  }
-> = {
-  padrao: {
-    label: "Padrão",
-    generate: (product, link) => {
-      const priceLabel =
-        product.priceMax && product.priceMax > (product.price || 0)
-          ? "A partir de: R$"
-          : "Por: R$";
-      return [
-        `🔥 ${product.title}`,
-        "",
-        `❌ De: <s>R$ ${product.originalPrice?.toFixed(2) ?? "?"}</s>`,
-        `✅ ${priceLabel} ${product.price?.toFixed(2) ?? "?"} 😱😱`,
-        ...(product.promoCode
-          ? [`\n🏷️ <b>Cupom</b>: <code>${product.promoCode}</code>`]
-          : []),
-        "",
-        `🛒 ${link}`,
-        "",
-        "😎🚀 Para mais ofertas, acesse: https://t.me/top_ofertas_online",
-      ].join("\n");
-    },
-  },
-  simples: {
-    label: "Simples",
-    generate: (product, link) => {
-      const priceLabel =
-        product.priceMax && product.priceMax > (product.price || 0)
-          ? "A partir de R$"
-          : "R$";
-      return [
-        `📦 ${product.title}`,
-        `💰 ${priceLabel} ${product.price?.toFixed(2) ?? "?"}`,
-        `🔗 ${link}`,
-      ].join("\n");
-    },
-  },
-  com_cupom: {
-    label: "Com Cupom",
-    generate: (product, link) => {
-      if (!product.promoCode) {
-        return TEMPLATES.padrao.generate(product, link);
-      }
-      const priceLabel =
-        product.priceMax && product.priceMax > (product.price || 0)
-          ? "A partir de: R$"
-          : "Por: R$";
-      return [
-        "🏷️ CUPOM ESPECIAL 🏷️",
-        "",
-        `🔥 ${product.title}`,
-        `❌ De: <s>R$ ${product.originalPrice?.toFixed(2) ?? "?"}</s>`,
-        `✅ ${priceLabel} ${product.price?.toFixed(2) ?? "?"}`,
-        `🎫 Cupom: <code>${product.promoCode}</code>`,
-        "",
-        `🛒 ${link}`,
-        "",
-        "⏳ Oferta por tempo limitado!",
-      ].join("\n");
-    },
-  },
-  relampago: {
-    label: "Promoção Relâmpago",
-    generate: (product, link) => {
-      const original = product.originalPrice ?? 0;
-      const current = product.price ?? 0;
-
-      const hasDiscount = original > current;
-      const savings = hasDiscount ? original - current : 0;
-      const discount = hasDiscount ? (savings / original) * 100 : 0;
-
-      const priceLabel =
-        product.priceMax && product.priceMax > current
-          ? "A partir de"
-          : "Por apenas";
-
-      const formatPrice = (value: number) =>
-        value.toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-
-      return [
-        "⚡ PROMOÇÃO RELÂMPAGO ⚡",
-        "",
-        `🛍️ ${product.title}`,
-        "",
-        hasDiscount ? `💥 De: ~~R$ ${formatPrice(original)}~~` : null,
-        `🔥 ${priceLabel}: R$ ${formatPrice(current)}`,
-        hasDiscount
-          ? `💸 Economize R$ ${formatPrice(savings)} (${discount.toFixed(0)}% OFF)`
-          : null,
-        "",
-        `🛒 ${link}`,
-        "",
-        "🚨 Estoque limitado! Aproveite antes que o preço mude.",
-      ]
-        .join("\n");
-    },
-  },
 };
 
 export const TelegramQueueDashboard = (): JSX.Element => {
@@ -236,7 +81,14 @@ export const TelegramQueueDashboard = (): JSX.Element => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
-  const [fetchingPdp, setFetchingPdp] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvTemplate, setCsvTemplate] = useState<TemplateKey>("padrao");
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvProgress, setCsvProgress] = useState(0);
+  const [csvTotal, setCsvTotal] = useState(0);
+  const [csvResult, setCsvResult] = useState<ImportResult | null>(null);
+  const [csvFailedOpen, setCsvFailedOpen] = useState(false);
+  const csvAbortRef = useRef<AbortController | null>(null);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -264,83 +116,6 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     return () => clearInterval(interval);
   }, [fetchQueue]);
 
-  const extractProductId = (url: string): string => {
-    const patterns = [
-      /\/item\/(\d+)\.html/i,
-      /product\/(\d+)\.html/i,
-      /\/i\/(\d+)\.html/i,
-    ];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match?.[1]) return match[1];
-    }
-    const fallbackMatch = url.match(/(\d{8,})/);
-    return fallbackMatch?.[1] || "";
-  };
-
-  const isShopeeUrl = (url: string): boolean => {
-    return /shopee\.\w+/.test(url) || /cf\.shopee\.\w+/.test(url);
-  };
-
-  const extractShopeeItemId = (url: string): string => {
-    const patterns = [/\/product\/(\d+)\/(\d+)/i, /-i\.(\d+)\.(\d+)/i];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match?.[2]) return match[2];
-    }
-    return "";
-  };
-
-  const mapShopeeProductToDiscovery = (
-    shopeeProduct: Record<string, unknown>,
-    fallback: DiscoveryProduct,
-  ): DiscoveryProduct => {
-    const priceMin = parseFloat(
-      String(shopeeProduct.priceMin || shopeeProduct.price || "0"),
-    );
-    const priceMax = parseFloat(String(shopeeProduct.priceMax || "0"));
-    const price = priceMin;
-    const discountRate = Number(shopeeProduct.priceDiscountRate || 0);
-    const originalPrice =
-      discountRate > 0 ? priceMin / (1 - discountRate / 100) : priceMin;
-    const productCatIds = Array.isArray(shopeeProduct.productCatIds)
-      ? shopeeProduct.productCatIds
-      : [];
-
-    return {
-      ...fallback,
-      productId: String(shopeeProduct.itemId ?? fallback.productId),
-      title: String(shopeeProduct.productName || fallback.title),
-      imageUrl: String(shopeeProduct.imageUrl || fallback.imageUrl),
-      detailUrl: String(shopeeProduct.productLink || fallback.detailUrl),
-      categoryId: (productCatIds[0] as number) || fallback.categoryId,
-      categoryName: "",
-      shopId: (shopeeProduct.shopId as number) || fallback.shopId,
-      price: price || fallback.price,
-      priceMax: priceMax || undefined,
-      originalPrice: originalPrice || fallback.originalPrice,
-      discountPercent: discountRate || fallback.discountPercent,
-      rating:
-        parseFloat(String(shopeeProduct.ratingStar || "0")) || fallback.rating,
-      salesVolume: Number(shopeeProduct.sales || 0) || fallback.salesVolume,
-      commissionRate:
-        parseFloat(String(shopeeProduct.commissionRate || "0")) * 100 ||
-        fallback.commissionRate,
-      shippingDays: 30,
-      hasVideo: false,
-      promoCode: undefined,
-      isHotProduct: Number(shopeeProduct.sales || 0) >= 1000,
-    };
-  };
-
-  const generateText = (
-    template: TemplateKey,
-    product: DiscoveryProduct,
-    link: string,
-  ) => {
-    return TEMPLATES[template].generate(product, link);
-  };
-
   const handleAddProduct = async () => {
     const rawUrl = productUrlInput.trim();
     if (!rawUrl) {
@@ -366,112 +141,14 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       return;
     }
 
-    let hydrated: DiscoveryProduct | null = null;
-    let promotionLink = "";
+    const result = await hydrateProduct(rawUrl);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      const apiUrl = isShopee
-        ? `/api/shopee?type=product-details&item_id=${encodeURIComponent(productId)}`
-        : `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
-      const response = await fetch(apiUrl, { signal: controller.signal });
-      if (response.ok) {
-        const payload = await response.json();
-        if (payload.product) {
-          hydrated = isShopee
-            ? mapShopeeProductToDiscovery(payload.product, {
-                productId,
-                title: "Produto sem titulo",
-                imageUrl: "",
-                detailUrl: rawUrl,
-              })
-            : mapDetailsToProduct(payload.product, {
-                productId,
-                title: "Produto sem titulo",
-                imageUrl: "",
-                detailUrl: rawUrl,
-              });
-
-          if (isShopee) {
-            const periodEnd = payload.product.periodEndTime
-              ? payload.product.periodEndTime * 1000
-              : 0;
-            if (periodEnd && periodEnd <= Date.now()) {
-              setModalStatus(
-                "⚠️ Oferta Shopee expirada. Confirme a URL antes de continuar.",
-              );
-            }
-          }
-        }
-      }
-    } catch {
-      // Product details not available via API — will try affiliate link
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (isShopee && hydrated) {
-      setFetchingPdp(true);
-      setModalStatus("Buscando preço atualizado...");
-      try {
-        const pdpRes = await fetch("/api/shopee/pdp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: rawUrl }),
-        });
-        if (pdpRes.ok) {
-          const pdpPayload = await pdpRes.json();
-          if (pdpPayload.ok && pdpPayload.data) {
-            const pdp = pdpPayload.data;
-            hydrated = {
-              ...hydrated,
-              price: pdp.price,
-              priceMax: pdp.priceMax,
-              originalPrice: pdp.priceBeforeDiscount,
-              discountPercent: pdp.discountPercent,
-            };
-          }
-        }
-      } catch {
-        // Scraper failed — fall back to GraphQL prices
-      } finally {
-        setFetchingPdp(false);
-      }
-    }
-
-    try {
-      const cleanOrigin = isShopee
-        ? rawUrl.split("?")[0].split("&")[0]
-        : rawUrl;
-      const linkApiUrl = isShopee
-        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(cleanOrigin)}`
-        : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
-      const linkResponse = await fetch(linkApiUrl);
-      if (linkResponse.ok) {
-        const linkPayload = await linkResponse.json();
-        promotionLink =
-          linkPayload.promotionLink || linkPayload.shortLink || "";
-      }
-    } catch {
-      // Affiliate link not available
-    }
-
-    if (hydrated || promotionLink) {
-      if (!hydrated) {
-        hydrated = {
-          productId,
-          title: "Produto sem titulo",
-          imageUrl: "",
-          detailUrl: rawUrl,
-        };
-      }
-      setModalPreview(hydrated);
-      setPromotionLink(promotionLink);
-      setCaptionText(generateText("padrao", hydrated, promotionLink));
+    if (result) {
+      setModalPreview(result.hydrated);
+      setPromotionLink(result.promotionLink);
+      setCaptionText(TEMPLATES.padrao.generate(result.hydrated, result.promotionLink));
       setModalStatus(
-        promotionLink
+        result.promotionLink
           ? "Detalhes carregados."
           : "Detalhes carregados. Link de afiliado indisponivel para este produto.",
       );
@@ -484,7 +161,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     const template = value as TemplateKey;
     setSelectedTemplate(template);
     if (modalPreview) {
-      setCaptionText(generateText(template, modalPreview, promotionLink));
+      setCaptionText(TEMPLATES[template].generate(modalPreview, promotionLink));
     }
   };
 
@@ -642,6 +319,38 @@ export const TelegramQueueDashboard = (): JSX.Element => {
     }
   };
 
+  const handleCsvImport = async () => {
+    if (!csvFile) return;
+    setCsvImporting(true);
+    setCsvProgress(0);
+    setCsvTotal(0);
+    setCsvResult(null);
+    const controller = new AbortController();
+    csvAbortRef.current = controller;
+
+    try {
+      const result = await importBatchCsv({
+        file: csvFile,
+        template: csvTemplate,
+        signal: controller.signal,
+        onProgress: (current, total) => {
+          setCsvProgress(current);
+          setCsvTotal(total);
+        },
+      });
+      setCsvResult(result);
+      await fetchQueue();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setAddStatus("Importação cancelada.");
+      } else {
+        setAddStatus("Erro ao importar CSV.");
+      }
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -747,6 +456,115 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         <p className="text-xs text-muted-foreground">{addStatus}</p>
       ) : null}
 
+      <Collapsible
+        open={csvFailedOpen}
+        onOpenChange={setCsvFailedOpen}
+        className="rounded-md border border-white/10 bg-white/5"
+      >
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 text-left hover:bg-white/5 transition-colors">
+          <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium">Importar CSV</span>
+          {csvResult ? (
+            <Badge variant="secondary" className="font-mono text-xs">
+              {csvResult.inserted}/{csvResult.total}
+            </Badge>
+          ) : null}
+          <ChevronDown
+            className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180 ml-auto"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-white/10">
+          <div className="space-y-3 p-3">
+            <div className="flex gap-2 items-center">
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  setCsvFile(e.target.files?.[0] ?? null);
+                  setCsvResult(null);
+                }}
+                disabled={csvImporting}
+                className="flex-1"
+              />
+              <Select
+                value={csvTemplate}
+                onValueChange={(v) => setCsvTemplate(v as TemplateKey)}
+                disabled={csvImporting}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TEMPLATES).map(([key, t]) => (
+                    <SelectItem key={key} value={key}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {csvImporting ? (
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: csvTotal ? `${(csvProgress / csvTotal) * 100}%` : "0%" }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {csvProgress} / {csvTotal}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-2">
+              {csvImporting ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => csvAbortRef.current?.abort()}
+                >
+                  Cancelar
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleCsvImport}
+                  disabled={!csvFile}
+                >
+                  Importar
+                </Button>
+              )}
+            </div>
+
+            {csvResult ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Inseridos: {csvResult.inserted} | Falhas: {csvResult.failedUrls.length}
+                </p>
+                {csvResult.failedUrls.length > 0 ? (
+                  <Collapsible>
+                    <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      Ver URLs com falha ({csvResult.failedUrls.length})
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-1 max-h-32 overflow-y-auto rounded bg-black/20 p-2">
+                        {csvResult.failedUrls.map((url, i) => (
+                          <p key={i} className="text-xs text-red-400 truncate">
+                            {url}
+                          </p>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           {modalPreview ? (
@@ -794,9 +612,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           ) : null}
 
           <p className="text-xs text-muted-foreground">
-            {fetchingPdp
-              ? "Buscando preço atualizado..."
-              : modalStatus || "Pronto"}
+            {modalStatus || "Pronto"}
           </p>
 
           <div className="grid grid-cols-2 gap-4">

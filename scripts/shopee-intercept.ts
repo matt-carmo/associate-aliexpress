@@ -86,10 +86,10 @@ async function main() {
   await page.screenshot({ path: '/tmp/shopee-page.png' });
   console.log('\nScreenshot saved');
 
-  await browser.close();
+  // await browser.close();
 }
 
 main().catch(err => {
   console.error('Fatal:', err.message);
-  process.exit(1);
+  // process.exit(1);
 });

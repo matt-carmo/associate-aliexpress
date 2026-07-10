@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   clearQueue,
   enqueue,
+  enqueueMany,
   getQueue,
   getQueueByStatus,
   getQueueSettings,
@@ -54,6 +55,15 @@ queueRouter.post("/", (req, res) => {
   });
 
   return res.status(201).json({ message: "Item added to queue" });
+});
+
+queueRouter.post("/batch", (req, res) => {
+  const { items } = req.body ?? {};
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "items array is required" });
+  }
+  enqueueMany(items);
+  return res.status(201).json({ message: "Batch enqueued", count: items.length });
 });
 
 queueRouter.put("/", (req, res) => {
