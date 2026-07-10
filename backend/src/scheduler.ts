@@ -12,6 +12,7 @@ import { sendPhoto } from "./services/telegram.js";
 import { sendImage } from "./services/whatsapp.js";
 import { config as telegramConfig } from "./config/telegram.js";
 import { config as whatsappConfig } from "./config/whatsapp.js";
+import { getDb } from "./storage/database.js";
 
 const CHAT_ID = telegramConfig.chatId;
 const POLL_INTERVAL_MS = 10_000;
@@ -21,14 +22,22 @@ let running = false;
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let cleanupHandle: ReturnType<typeof setInterval> | null = null;
 
+function getStoredWhatsAppTarget(): string {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get("whatsapp_target") as { value: string } | undefined;
+  return row?.value ?? "";
+}
+
 async function sendViaWhatsApp(item: QueueItem): Promise<boolean> {
   const { data, caption, target: itemTarget } = item;
   const imageUrl = (data as Record<string, unknown>)?.imageUrl as string | undefined;
   if (!imageUrl) return false;
 
-  const target = itemTarget ?? whatsappConfig.to;
+  const target = itemTarget ?? getStoredWhatsAppTarget() ?? whatsappConfig.to;
   if (!target) {
-    console.warn("[Scheduler] No target (item target or WHATSAPP_CHAT_ID) — skipping WhatsApp send");
+    console.warn("[Scheduler] No target (item target or WhatsApp settings) — skipping WhatsApp send");
     return false;
   }
 

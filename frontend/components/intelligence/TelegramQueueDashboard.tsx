@@ -396,7 +396,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         onOpenChange={setSettingsOpen}
         className="rounded-md border border-white/10 bg-white/5"
       >
-        <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 text-left hover:bg-white/5 transition-colors">
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 pl-0 text-left hover:bg-white/5 transition-colors">
           <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-sm font-medium">Intervalo Random</span>
           {scheduleSettings ? (
@@ -414,7 +414,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="border-t border-white/10">
-          <div className="space-y-3 p-3">
+          <div className="space-y-3 pt-3">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="font-mono text-xs">
@@ -469,7 +469,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
 
       {csvFailedOpen ? (
         <div className="rounded-md border border-white/10 bg-white/5">
-          <div className="space-y-3 p-3">
+          <div className="space-y-3">
             <div className="flex gap-2 items-center">
               <Input
                 type="file"

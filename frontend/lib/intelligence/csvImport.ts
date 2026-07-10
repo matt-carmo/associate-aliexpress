@@ -1,6 +1,6 @@
 import { hydrateProduct } from "./hydrateProduct";
 import { TEMPLATES, type TemplateKey } from "./templates";
-import { enqueueBatch } from "../backendApi";
+import { enqueueBatch, getWhatsAppTarget } from "../backendApi";
 
 export type ImportResult = {
   total: number;
@@ -39,6 +39,7 @@ export async function importBatchCsv(opts: {
 
   const urls = await parseCsvFile(file);
   const importId = await sha256(`${file.name}-${file.size}-${Date.now()}`);
+  const whatsappTarget = (await getWhatsAppTarget()) || undefined;
 
   const items: Array<{
     id: string;
@@ -65,6 +66,7 @@ export async function importBatchCsv(opts: {
       id: `csv-${importId}-${i}`,
       data: hydrated,
       caption,
+      target: whatsappTarget,
     });
 
     onProgress?.(i + 1, urls.length);

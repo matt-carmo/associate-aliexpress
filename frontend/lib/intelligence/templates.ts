@@ -95,8 +95,8 @@ export const TEMPLATES: Record<
         "",
         `🛍️ ${product.title}`,
         "",
-        hasDiscount ? `💥 De: ~~R$ ${formatPrice(original)}~~` : null,
-        `🔥 ${priceLabel}: R$ ${formatPrice(current)}`,
+        hasDiscount ? `💥 De: ~R$ ${formatPrice(original)}~` : null,
+        `🔥 ${priceLabel}: *R$ ${formatPrice(current)}*`,
         hasDiscount
           ? `💸 Economize R$ ${formatPrice(savings)} (${discount.toFixed(0)}% OFF)`
           : null,
