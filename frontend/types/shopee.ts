@@ -88,6 +88,7 @@ export interface ShopeePdpData {
   itemId: number;
   shopId: number;
   title: string;
+  image:string;
   currency: string;
   price: number;
   priceMax?: number;
@@ -103,6 +104,7 @@ export interface ShopeePdpData {
   installmentMonths?: number;
   installmentMonthly?: number;
   ratingStar?: number;
+  imageUrl?: string;
   sourceUrl: string;
   capturedAt: number;
 }

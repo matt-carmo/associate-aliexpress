@@ -39,7 +39,7 @@ import {
   extractShopeeItemId,
 } from "@/lib/intelligence/hydrateProduct";
 import { TEMPLATES, type TemplateKey } from "@/lib/intelligence/templates";
-import { importBatchCsv, type ImportResult } from "@/lib/intelligence/csvImport";
+import { importBatchCsv, importBatchCsvWithScraper, type ImportResult } from "@/lib/intelligence/csvImport";
 
 const MESSAGING_BASE_URL =
   process.env.NEXT_PUBLIC_MESSAGING_API_URL || "http://localhost:4000";
@@ -89,6 +89,11 @@ export const TelegramQueueDashboard = (): JSX.Element => {
   const [csvResult, setCsvResult] = useState<ImportResult | null>(null);
   const [csvFailedOpen, setCsvFailedOpen] = useState(false);
   const csvAbortRef = useRef<AbortController | null>(null);
+  const [csvScraperImporting, setCsvScraperImporting] = useState(false);
+  const [csvScraperProgress, setCsvScraperProgress] = useState(0);
+  const [csvScraperTotal, setCsvScraperTotal] = useState(0);
+  const [csvScraperResult, setCsvScraperResult] = useState<ImportResult | null>(null);
+  const csvScraperAbortRef = useRef<AbortController | null>(null);
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -338,6 +343,7 @@ export const TelegramQueueDashboard = (): JSX.Element => {
           setCsvTotal(total);
         },
       });
+
       setCsvResult(result);
       await fetchQueue();
     } catch (err) {
@@ -348,6 +354,39 @@ export const TelegramQueueDashboard = (): JSX.Element => {
       }
     } finally {
       setCsvImporting(false);
+    }
+  };
+
+  const handleCsvScraperImport = async () => {
+    if (!csvFile) return;
+    setCsvScraperImporting(true);
+    setCsvScraperProgress(0);
+    setCsvScraperTotal(0);
+    setCsvScraperResult(null);
+    const controller = new AbortController();
+    csvScraperAbortRef.current = controller;
+
+    try {
+      const result = await importBatchCsvWithScraper({
+        file: csvFile,
+        template: csvTemplate,
+        signal: controller.signal,
+        onProgress: (current, total) => {
+          setCsvScraperProgress(current);
+          setCsvScraperTotal(total);
+        },
+      });
+
+      setCsvScraperResult(result);
+      await fetchQueue();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setAddStatus("Importação cancelada.");
+      } else {
+        setAddStatus("Erro ao importar CSV com scraper.");
+      }
+    } finally {
+      setCsvScraperImporting(false);
     }
   };
 
@@ -477,14 +516,15 @@ export const TelegramQueueDashboard = (): JSX.Element => {
                 onChange={(e) => {
                   setCsvFile(e.target.files?.[0] ?? null);
                   setCsvResult(null);
+                  setCsvScraperResult(null);
                 }}
-                disabled={csvImporting}
+                disabled={csvImporting || csvScraperImporting}
                 className="flex-1"
               />
               <Select
                 value={csvTemplate}
                 onValueChange={(v) => setCsvTemplate(v as TemplateKey)}
-                disabled={csvImporting}
+                disabled={csvImporting || csvScraperImporting}
               >
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Template" />
@@ -513,23 +553,50 @@ export const TelegramQueueDashboard = (): JSX.Element => {
               </div>
             ) : null}
 
+            {csvScraperImporting ? (
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500 transition-all"
+                    style={{ width: csvScraperTotal ? `${(csvScraperProgress / csvScraperTotal) * 100}%` : "0%" }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Scraper: {csvScraperProgress} / {csvScraperTotal}
+                </p>
+              </div>
+            ) : null}
+
             <div className="flex items-center gap-2">
-              {csvImporting ? (
+              {csvImporting || csvScraperImporting ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => csvAbortRef.current?.abort()}
+                  onClick={() => {
+                    csvAbortRef.current?.abort();
+                    csvScraperAbortRef.current?.abort();
+                  }}
                 >
                   Cancelar
                 </Button>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={handleCsvImport}
-                  disabled={!csvFile}
-                >
-                  Importar
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleCsvImport}
+                    disabled={!csvFile}
+                  >
+                    Importar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleCsvScraperImport}
+                    disabled={!csvFile}
+                  >
+                    Importar com Scraper
+                  </Button>
+                </>
               )}
             </div>
 
@@ -546,6 +613,30 @@ export const TelegramQueueDashboard = (): JSX.Element => {
                     <CollapsibleContent>
                       <div className="mt-1 max-h-32 overflow-y-auto rounded bg-black/20 p-2">
                         {csvResult.failedUrls.map((url, i) => (
+                          <p key={i} className="text-xs text-red-400 truncate">
+                            {url}
+                          </p>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ) : null}
+              </div>
+            ) : null}
+
+            {csvScraperResult ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Scraper - Inseridos: {csvScraperResult.inserted} | Falhas: {csvScraperResult.failedUrls.length}
+                </p>
+                {csvScraperResult.failedUrls.length > 0 ? (
+                  <Collapsible>
+                    <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      Ver URLs com falha ({csvScraperResult.failedUrls.length})
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-1 max-h-32 overflow-y-auto rounded bg-black/20 p-2">
+                        {csvScraperResult.failedUrls.map((url, i) => (
                           <p key={i} className="text-xs text-red-400 truncate">
                             {url}
                           </p>

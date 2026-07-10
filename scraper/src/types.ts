@@ -17,6 +17,7 @@ export interface ShopeePdpData {
   installmentMonths?: number;
   installmentMonthly?: number;
   ratingStar?: number;
+  imageUrl?: string;
   sourceUrl: string;
   capturedAt: number;
 }

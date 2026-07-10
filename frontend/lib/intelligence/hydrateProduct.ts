@@ -1,3 +1,4 @@
+import type { ShopeePdpData } from "@/types/shopee";
 import type { DiscoveryProduct } from "./discoveryProduct";
 
 export type HydratedProduct = {
@@ -129,6 +130,7 @@ const mapShopeeProductToDiscovery = (
 export async function hydrateProduct(
   rawUrl: string,
   signal?: AbortSignal,
+  existingPromotionLink?: string,
 ): Promise<HydratedProduct | null> {
   const isShopee = isShopeeUrl(rawUrl);
   const productId = isShopee
@@ -206,21 +208,25 @@ export async function hydrateProduct(
     }
   }
 
-  try {
-    const cleanOrigin = isShopee
-      ? rawUrl.split("?")[0].split("&")[0]
-      : rawUrl;
-    const linkApiUrl = isShopee
-      ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(cleanOrigin)}`
-      : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
-    const linkResponse = await fetch(linkApiUrl, { signal: combinedSignal });
-    if (linkResponse.ok) {
-      const linkPayload = await linkResponse.json();
-      promotionLink =
-        linkPayload.promotionLink || linkPayload.shortLink || "";
+  if (existingPromotionLink) {
+    promotionLink = existingPromotionLink;
+  } else {
+    try {
+      const cleanOrigin = isShopee
+        ? rawUrl.split("?")[0].split("&")[0]
+        : rawUrl;
+      const linkApiUrl = isShopee
+        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(cleanOrigin)}`
+        : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
+      const linkResponse = await fetch(linkApiUrl, { signal: combinedSignal });
+      if (linkResponse.ok) {
+        const linkPayload = await linkResponse.json();
+        promotionLink =
+          linkPayload.promotionLink || linkPayload.shortLink || "";
+      }
+    } catch {
+      // Affiliate link not available
     }
-  } catch {
-    // Affiliate link not available
   }
 
   if (!hydrated && !promotionLink) return null;
@@ -228,6 +234,159 @@ export async function hydrateProduct(
   if (!hydrated) {
     hydrated = fallback;
   }
+
+  return { hydrated, promotionLink };
+}
+
+export async function hydrateProductWithoutScraper(
+  rawUrl: string,
+  signal?: AbortSignal,
+  existingPromotionLink?: string,
+): Promise<HydratedProduct | null> {
+  const isShopee = isShopeeUrl(rawUrl);
+  const productId = isShopee
+    ? extractShopeeItemId(rawUrl)
+    : extractProductId(rawUrl);
+  if (!productId) return null;
+
+  let hydrated: DiscoveryProduct | null = null;
+  let promotionLink = "";
+
+  const fallback: DiscoveryProduct = {
+    productId,
+    title: "Produto sem titulo",
+    imageUrl: "",
+    detailUrl: rawUrl,
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const apiUrl = isShopee
+      ? `/api/shopee?type=product-details&item_id=${encodeURIComponent(productId)}`
+      : `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
+    const response = await fetch(apiUrl, { signal: combinedSignal });
+    if (response.ok) {
+      const payload = await response.json();
+      if (payload.product) {
+        hydrated = isShopee
+          ? mapShopeeProductToDiscovery(payload.product, fallback)
+          : mapDetailsToProduct(payload.product, fallback);
+
+        if (isShopee) {
+          const periodEnd = payload.product.periodEndTime
+            ? payload.product.periodEndTime * 1000
+            : 0;
+          if (periodEnd && periodEnd <= Date.now()) {
+            hydrated = null;
+          }
+        }
+      }
+    }
+  } catch {
+    // Product details not available
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (existingPromotionLink) {
+    promotionLink = existingPromotionLink;
+  } else {
+    try {
+      const cleanOrigin = isShopee
+        ? rawUrl.split("?")[0].split("&")[0]
+        : rawUrl;
+      const linkApiUrl = isShopee
+        ? `/api/shopee?type=short-link&origin_url=${encodeURIComponent(cleanOrigin)}`
+        : `/api/ali?type=affiliate-link&product_detail_url=${encodeURIComponent(rawUrl)}`;
+      const linkResponse = await fetch(linkApiUrl, { signal: combinedSignal });
+      if (linkResponse.ok) {
+        const linkPayload = await linkResponse.json();
+        promotionLink =
+          linkPayload.promotionLink || linkPayload.shortLink || "";
+      }
+    } catch {
+      // Affiliate link not available
+    }
+  }
+
+  if (!hydrated && !promotionLink) return null;
+
+  if (!hydrated) {
+    hydrated = fallback;
+  }
+
+  return { hydrated, promotionLink };
+}
+
+const mapPdpDataToProduct = (
+  pdp: ShopeePdpData,
+  fallback: DiscoveryProduct,
+): DiscoveryProduct => {
+  return {
+    ...fallback,
+    productId: pdp.itemId,
+    title: pdp.title || fallback.title,
+    imageUrl: pdp.imageUrl || fallback.imageUrl,
+    detailUrl: pdp.sourceUrl || fallback.detailUrl,
+    shopId: pdp.shopId,
+    price: pdp.price || fallback.price,
+    priceMax: pdp.priceMax || undefined,
+    originalPrice: pdp.priceBeforeDiscount || fallback.originalPrice,
+    discountPercent: pdp.discountPercent || fallback.discountPercent,
+    rating: pdp.ratingStar || fallback.rating,
+  };
+};
+
+export async function hydrateProductWithScraper(
+  rawUrl: string,
+  signal?: AbortSignal,
+  existingPromotionLink?: string,
+): Promise<HydratedProduct | null> {
+  const productId = extractShopeeItemId(rawUrl);
+  if (!productId) return null;
+
+  const fallback: DiscoveryProduct = {
+    productId,
+    title: "Produto sem titulo",
+    imageUrl: "",
+    detailUrl: rawUrl,
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  let hydrated: DiscoveryProduct | null = null;
+  const promotionLink = existingPromotionLink || "";
+
+  try {
+    const res = await fetch("/api/shopee/pdp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: rawUrl }),
+      signal: combinedSignal,
+    });
+
+    if (res.ok) {
+      const payload = await res.json();
+      if (payload.ok && payload.data) {
+        hydrated = mapPdpDataToProduct(payload.data, fallback);
+      }
+    }
+  } catch {
+    // Scraper failed
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!hydrated) return null;
 
   return { hydrated, promotionLink };
 }

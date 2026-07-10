@@ -25,11 +25,18 @@ export function createPdpHandler(queue: SerialQueue) {
         const page = await browserManager.ensureConnected();
 
         const captured = await capturePdp(page, url, timeout);
+
+        console.log(captured)
         const data = normalizePdp(
           captured.data,
           url,
         );
-        console.log(`PDP capture ${data}`);
+        
+        if (!data) {
+          throw new Error("No valid price found in PDP response (tried price_breakdown, product_price, and item.price_min)");
+        }
+        
+        console.log(`PDP capture success: ${data.title} - R$ ${data.price}`);
         return { data, durationMs: 0 };
       }, timeout + 5000);
 

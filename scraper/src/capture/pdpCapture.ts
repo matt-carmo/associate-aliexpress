@@ -6,7 +6,13 @@ const PDP_ENDPOINT = "/api/v4/pdp/get_pc";
 
 
 function extractShopeeInfo(url: string) {
-  const match = url.match(/-i\.(\d+)\.(\d+)/);
+  // Formato 1: -i.{shopId}.{itemId}
+  let match = url.match(/-i\.(\d+)\.(\d+)/);
+  
+  // Formato 2: /product/{shopId}/{itemId}
+  if (!match) {
+    match = url.match(/\/product\/(\d+)\/(\d+)/);
+  }
 
   if (!match) {
     throw new Error("URL inválida");
