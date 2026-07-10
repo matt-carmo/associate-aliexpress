@@ -153,11 +153,11 @@ export async function importBatchCsv(opts: {
 
       const hydrated: DiscoveryProduct = {
         ...result.hydrated,
-        title: row.title || result.hydrated.title,
-        price: row.price || result.hydrated.price,
-        originalPrice: row.originalPrice || result.hydrated.originalPrice,
-        salesVolume: row.salesVolume || result.hydrated.salesVolume,
-        commissionRate: row.commissionRate || result.hydrated.commissionRate,
+        title:  result.hydrated.title || row.title,
+        price:  result.hydrated.price || row.price,
+        originalPrice:  result.hydrated.originalPrice || row.originalPrice,
+        salesVolume:  result.hydrated.salesVolume || row.salesVolume,
+        commissionRate:  result.hydrated.commissionRate || row.commissionRate,
       };
 
       const caption = TEMPLATES[template].generate(hydrated, row.affiliateUrl);
@@ -250,6 +250,8 @@ export async function importBatchCsvWithScraper(opts: {
       signal,
       row.affiliateUrl,
     );
+
+    console.log(`Hydration result for ${row.productUrl}:`, result);
     if (!result) {
       failedUrls.push(row.productUrl);
       onProgress?.(i + 1, rows.length);
@@ -258,11 +260,11 @@ export async function importBatchCsvWithScraper(opts: {
 
     const hydrated: DiscoveryProduct = {
       ...result.hydrated,
-      title: row.title || result.hydrated.title,
-      price: row.price || result.hydrated.price,
-      originalPrice: row.originalPrice || result.hydrated.originalPrice,
-      salesVolume: row.salesVolume || result.hydrated.salesVolume,
-      commissionRate: row.commissionRate || result.hydrated.commissionRate,
+      title:  result.hydrated.title || row.title,
+      price:  result.hydrated.price || row.price,
+      originalPrice:  result.hydrated.originalPrice || row.originalPrice,
+      salesVolume:  result.hydrated.salesVolume || row.salesVolume,
+      commissionRate:  result.hydrated.commissionRate || row.commissionRate,
     };
 
     const caption = TEMPLATES[template].generate(hydrated, row.affiliateUrl);

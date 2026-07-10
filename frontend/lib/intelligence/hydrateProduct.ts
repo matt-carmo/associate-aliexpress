@@ -6,6 +6,15 @@ export type HydratedProduct = {
   promotionLink: string;
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const SCRAPER_JITTER_MIN_MS = 1_500;
+const SCRAPER_JITTER_MAX_MS = 5_000;
+
+const getScraperJitter = () =>
+  SCRAPER_JITTER_MIN_MS +
+  Math.floor(Math.random() * (SCRAPER_JITTER_MAX_MS - SCRAPER_JITTER_MIN_MS));
+
 const parseNumber = (value?: string | number): number => {
   if (typeof value === "number") return value;
   if (!value) return 0;
@@ -155,35 +164,7 @@ export async function hydrateProduct(
     : controller.signal;
 
   try {
-    const apiUrl = isShopee
-      ? `/api/shopee?type=product-details&item_id=${encodeURIComponent(productId)}`
-      : `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
-    const response = await fetch(apiUrl, { signal: combinedSignal });
-    if (response.ok) {
-      const payload = await response.json();
-      if (payload.product) {
-        hydrated = isShopee
-          ? mapShopeeProductToDiscovery(payload.product, fallback)
-          : mapDetailsToProduct(payload.product, fallback);
-
-        if (isShopee) {
-          const periodEnd = payload.product.periodEndTime
-            ? payload.product.periodEndTime * 1000
-            : 0;
-          if (periodEnd && periodEnd <= Date.now()) {
-            hydrated = null;
-          }
-        }
-      }
-    }
-  } catch {
-    // Product details not available
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (isShopee && hydrated) {
-    try {
+    if (isShopee) {
       const pdpRes = await fetch("/api/shopee/pdp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -195,17 +176,34 @@ export async function hydrateProduct(
         if (pdpPayload.ok && pdpPayload.data) {
           const pdp = pdpPayload.data;
           hydrated = {
-            ...hydrated,
+            ...fallback,
+            productId: String(pdp.itemId ?? fallback.productId),
+            title: pdp.title || fallback.title,
+            imageUrl: pdp.imageUrl || fallback.imageUrl,
+            detailUrl: pdp.sourceUrl || fallback.detailUrl,
+            shopId: pdp.shopId || fallback.shopId,
             price: pdp.price,
             priceMax: pdp.priceMax,
             originalPrice: pdp.priceBeforeDiscount,
             discountPercent: pdp.discountPercent,
+            rating: pdp.ratingStar || fallback.rating,
           };
         }
       }
-    } catch {
-      // Scraper failed — fall back to GraphQL prices
+    } else {
+      const apiUrl = `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
+      const response = await fetch(apiUrl, { signal: combinedSignal });
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload.product) {
+          hydrated = mapDetailsToProduct(payload.product, fallback);
+        }
+      }
     }
+  } catch {
+    // Product details not available
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (existingPromotionLink) {
@@ -367,6 +365,10 @@ export async function hydrateProductWithScraper(
   const promotionLink = existingPromotionLink || "";
 
   try {
+    const jitter = getScraperJitter();
+    console.log(`[Scraper] Anti-bot jitter: waiting ${(jitter / 1000).toFixed(1)}s before PDP request`);
+    await sleep(jitter);
+
     const res = await fetch("/api/shopee/pdp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -7,8 +7,11 @@ SHOPEE_APP_ID=Your_Shopee_App_ID_Here
 SHOPEE_APP_SECRET=Your_Shopee_App_Secret_Here
 
 # FRONTEND
-NEXT_PUBLIC_MESSAGING_API_URL=Your_Frontend_Messaging_API_URL_Here
 NEXT_PUBLIC_SCRAPER_API_URL=http://localhost:4001
+
+# Backend URLs (used by frontend to generate .env.development / .env.production)
+BACKEND_URL_DEV=http://localhost:4000
+BACKEND_URL_PROD=http://your-ec2-host.amazonaws.com:4000
 # Telegram
 TELEGRAM_CHAT_ID=Your_Telegram_Chat_ID_Here
 TELEGRAM_BOT_TOKEN=Your_Telegram_Bot_Token_Here
