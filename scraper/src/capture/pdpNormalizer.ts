@@ -1,32 +1,13 @@
 import type { ShopeePdpData } from "../types.js";
 
 interface RawPdp {
-  data?: {
-    item?: {
-      item_id?: number;
-      shop_id?: number;
-      title?: string;
-      show_discount?: number;
-      has_model_with_available_shopee_stock?: boolean;
-      item_rating?: { rating_star?: number };
-    };
-    price_breakdown?: {
-      price?: {
-        single_value?: number;
-        range_min?: number;
-        range_max?: number;
-      };
-      price_before_discount?: {
-        single_value?: number;
-        range_min?: number;
-        range_max?: number;
-      };
-      discount_breakdown?: Array<{
-        type?: number;
-        discount_amount?: number;
-        price_source?: string;
-      }>;
-    };
+  item: {
+    item_id?: number;
+    shop_id?: number;
+    title?: string;
+    show_discount?: number;
+    has_model_with_available_shopee_stock?: boolean;
+    item_rating?: { rating_star?: number };
     product_price?: {
       installment_info?: {
         recommended_plan?: {
@@ -36,7 +17,26 @@ interface RawPdp {
       };
     };
     currency?: string;
+
+  }
+  price_breakdown?: {
+    price?: {
+      single_value?: number;
+      range_min?: number;
+      range_max?: number;
+    };
+    price_before_discount?: {
+      single_value?: number;
+      range_min?: number;
+      range_max?: number;
+    };
+    discount_breakdown?: Array<{
+      type?: number;
+      discount_amount?: number;
+      price_source?: string;
+    }>;
   };
+
 }
 
 function safeNum(v: unknown): number {
@@ -44,9 +44,9 @@ function safeNum(v: unknown): number {
 }
 
 export function normalizePdp(raw: RawPdp, sourceUrl: string): ShopeePdpData {
-  const d = raw.data ?? {};
-  const item = d.item ?? {};
-  const pb = d.price_breakdown ?? {};
+  ;
+  const item = raw.item ?? {};
+  const pb = raw.price_breakdown ?? {};
   const priceObj = pb.price ?? {};
   const beforeObj = pb.price_before_discount ?? {};
 
@@ -68,13 +68,13 @@ export function normalizePdp(raw: RawPdp, sourceUrl: string): ShopeePdpData {
     source: dd.price_source ?? "",
   }));
 
-  const installment = d.product_price?.installment_info?.recommended_plan;
+  const installment = item.product_price?.installment_info?.recommended_plan;
 
   return {
     itemId: safeNum(item.item_id),
     shopId: safeNum(item.shop_id),
     title: item.title ?? "",
-    currency: d.currency ?? "BRL",
+    currency: item.currency ?? "BRL",
     price,
     ...(priceMax > price ? { priceMax } : {}),
     priceBeforeDiscount: priceBefore,

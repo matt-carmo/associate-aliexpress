@@ -1,72 +1,60 @@
 import type { Page } from "playwright";
 import type { CapturedPdp } from "../types.js";
+import { Console } from "node:console";
 
 const PDP_ENDPOINT = "/api/v4/pdp/get_pc";
+
+
+function extractShopeeInfo(url: string) {
+  const match = url.match(/-i\.(\d+)\.(\d+)/);
+
+  if (!match) {
+    throw new Error("URL inválida");
+  }
+
+  const shopId = match[1];
+  const itemId = match[2];
+
+  const params = new URL(url).searchParams;
+
+  let displayModelId: string | null = null;
+
+  const extraParams = params.get("extraParams");
+  if (extraParams) {
+    try {
+      const json = JSON.parse(decodeURIComponent(extraParams));
+      displayModelId = json.display_model_id?.toString() ?? null;
+    } catch { }
+  }
+
+  return {
+    shopId,
+    itemId,
+    displayModelId,
+  };
+}
+
 
 export async function capturePdp(
   page: Page,
   url: string,
   timeoutMs: number,
 ): Promise<CapturedPdp> {
-  const start = Date.now();
 
-  return new Promise<CapturedPdp>((resolve, reject) => {
-    let capturedRequest: { url: string; body: unknown } | null = null;
-    let settled = false;
+  const { itemId, shopId } = extractShopeeInfo(url)
 
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(Object.assign(new Error("PDP capture timed out"), { code: "timeout" }));
-    }, timeoutMs);
+  const data = await page.evaluate(
+    async ({ itemId, shopId }) => {
+      const response = await fetch(
+        `/api/v4/pdp/get_pc?item_id=${itemId}&shop_id=${shopId}&tz_offset_in_minutes=-180&detail_level=0&incoming_pdp_page_source=0&incoming_pdp_page_scenario=0`
+      );
 
-    const onRequest = (req: { url: () => string; postData: () => string | null }) => {
-      if (!req.url().includes(PDP_ENDPOINT)) return;
-      try {
-        capturedRequest = {
-          url: req.url(),
-          body: req.postData() ? JSON.parse(req.postData()!) : null,
-        };
-      } catch {
-        capturedRequest = { url: req.url(), body: req.postData() };
-      }
-    };
-
-    const onResponse = async (res: { url: () => string; status: () => number; json: () => Promise<unknown> }) => {
-      if (!res.url().includes(PDP_ENDPOINT)) return;
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      cleanup();
-
-      try {
-        const responseBody = await res.json();
-        resolve({
-          requestUrl: capturedRequest?.url ?? res.url(),
-          requestBody: capturedRequest?.body ?? null,
-          responseBody,
-          durationMs: Date.now() - start,
-        });
-      } catch {
-        reject(Object.assign(new Error("Failed to parse PDP response"), { code: "pdp_parse_error" }));
-      }
-    };
-
-    const cleanup = () => {
-      page.removeListener("request", onRequest);
-      page.removeListener("response", onResponse);
-    };
-
-    page.on("request", onRequest);
-    page.on("response", onResponse);
-
-    page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs }).catch((err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      cleanup();
-      reject(Object.assign(new Error(`Navigation failed: ${err.message}`), { code: "navigation_failed" }));
-    });
+      return response.json();
+    },
+    { itemId, shopId }
+  ).catch((err) => {
+    console.error(`Error during PDP capture for itemId ${itemId} and shopId ${shopId}:`, err);
+    throw new Error("PDP capture failed");
   });
+  return data
 }

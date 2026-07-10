@@ -56,7 +56,19 @@ export async function page() {
   const context = browser.contexts()[0];
 
   const page = context.pages()[0]
+  await page.goto("https://shopee.com.br", {
+    waitUntil: "networkidle",
+  });
 
-  return page;
+  const data = await page.evaluate(async () => {
+    const response = await fetch(
+      "/api/v4/pdp/get_pc?item_id=13102665728&shop_id=427106553&tz_offset_in_minutes=-180&detail_level=0&incoming_pdp_page_source=0&incoming_pdp_page_scenario=0"
+    );
+
+    return await response.json();
+  });
+
+  console.log(data);
+
 }
 page()

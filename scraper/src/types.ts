@@ -50,7 +50,7 @@ export interface HealthResponse {
 
 export interface CapturedPdp {
   requestUrl: string;
-  requestBody: unknown;
-  responseBody: unknown;
-  durationMs: number;
+  data: {item: ShopeePdpData};
+  error_msg?: string;
+  error: string | null
 }

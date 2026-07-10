@@ -26,7 +26,7 @@ class BrowserManager {
     await this.waitForCdp();
     this.browser = await chromium.connectOverCDP(CDP_URL);
     this.page = await this.attachPage();
-    console.log("BrowserManager: connected via CDP");
+    this.page.goto("https://shopee.com.br", { waitUntil: "networkidle" });
   }
 
   private async attachPage(): Promise<Page> {

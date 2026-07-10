@@ -12,6 +12,8 @@ export function createPdpHandler(queue: SerialQueue) {
   return async (req: Request, res: Response) => {
     const { url, timeoutMs } = req.body as PdpRequest;
 
+    console.log(`PDP capture request received for URL: ${url} with timeout: ${timeoutMs ?? config.pdpTimeoutMs}ms`);
+
     if (!url || typeof url !== "string" || !SHOPEE_URL_RE.test(url)) {
       return res.status(400).json({ ok: false, error: "invalid_url", message: "URL must be a valid shopee.com.br link" });
     }
@@ -21,12 +23,14 @@ export function createPdpHandler(queue: SerialQueue) {
     try {
       const result = await queue.enqueue(async () => {
         const page = await browserManager.ensureConnected();
+
         const captured = await capturePdp(page, url, timeout);
         const data = normalizePdp(
-          captured.responseBody as Record<string, unknown>,
+          captured.data,
           url,
         );
-        return { data, durationMs: captured.durationMs };
+        console.log(`PDP capture ${data}`);
+        return { data, durationMs: 0 };
       }, timeout + 5000);
 
       return res.json({
@@ -39,7 +43,7 @@ export function createPdpHandler(queue: SerialQueue) {
       const error = err as { code?: string; message?: string };
       const code = error.code ?? "unknown_error";
       const message = error.message ?? "Unknown error";
-
+      console.error(`Error during PDP capture for URL ${url}:`, err);
       const statusMap: Record<string, number> = {
         timeout: 408,
         navigation_failed: 502,
