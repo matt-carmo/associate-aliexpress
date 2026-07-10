@@ -1,5 +1,6 @@
 import { chromium, type Page, type Browser } from "playwright";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, execSync, type ChildProcess } from "node:child_process";
+import os from "node:os";
 import { profileBootstrap, cleanSingletonLocks } from "./profileBootstrap.js";
 import { config } from "../config.js";
 import { stealthScript } from "../capture/stealth.js";
@@ -107,14 +108,18 @@ class BrowserManager {
   private killChrome(): void {
     if (!this.chromePid) return;
     try {
-      process.kill(this.chromePid, "SIGTERM");
+      if (os.platform() === "win32") {
+        execSync(`taskkill /PID ${this.chromePid} /T /F`, { stdio: "ignore" });
+      } else {
+        process.kill(this.chromePid, "SIGTERM");
+        const pid = this.chromePid;
+        setTimeout(() => {
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch {}
+        }, 5000);
+      }
     } catch {}
-    const pid = this.chromePid;
-    setTimeout(() => {
-      try {
-        process.kill(pid, "SIGKILL");
-      } catch {}
-    }, 5000);
     this.chromePid = null;
     this.chromeProcess = null;
   }

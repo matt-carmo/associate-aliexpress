@@ -1,14 +1,33 @@
+import os from "node:os";
+import fs from "node:fs";
+import path from "node:path";
+
 const env = process.env;
 
 function resolveProfileDir(): string {
   if (env.PROFILE_DIR) return env.PROFILE_DIR;
-  return `${import.meta.dirname}/../../.chrome-profile`;
+  return path.normalize(`${import.meta.dirname}/../../.chrome-profile`);
+}
+
+function resolveChromeExecutable(): string {
+  if (env.CHROME_EXECUTABLE) return env.CHROME_EXECUTABLE;
+  if (os.platform() !== "win32") return "google-chrome";
+
+  const candidates = [
+    path.join(process.env.ProgramFiles ?? "", "Google", "Chrome", "Application", "chrome.exe"),
+    path.join(process.env["ProgramFiles(x86)"] ?? "", "Google", "Chrome", "Application", "chrome.exe"),
+    path.join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "Application", "chrome.exe"),
+  ];
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+  return "chrome";
 }
 
 export const config = {
   port: Number(env.PORT) || 4001,
   corsOrigin: env.CORS_ORIGIN || "http://localhost:3000",
-  chromeExecutable: env.CHROME_EXECUTABLE || "google-chrome",
+  chromeExecutable: resolveChromeExecutable(),
   cdpPort: Number(env.CDP_PORT) || 9222,
   pdpTimeoutMs: Number(env.PDP_TIMEOUT_MS) || 30000,
   maxQueue: Number(env.MAX_QUEUE) || 20,

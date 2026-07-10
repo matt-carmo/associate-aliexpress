@@ -18,7 +18,7 @@ export function cleanSingletonLocks(profileDir: string, force = false): void {
     const p = path.join(profileDir, name);
     try {
       const stat = fs.lstatSync(p);
-      if (!force && stat.isSymbolicLink()) {
+      if (!force && stat.isSymbolicLink() && os.platform() !== "win32") {
         const target = fs.readlinkSync(p);
         const match = target.match(/-(\d+)$/);
         if (match && isPidAlive(Number(match[1]))) {
