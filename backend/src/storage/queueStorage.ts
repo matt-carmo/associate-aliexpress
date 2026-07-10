@@ -170,13 +170,15 @@ export function enqueueMany<T = unknown>(
   );
 
   const tx = db.transaction(() => {
+    let lastScheduledAt: number | undefined;
     for (const item of items) {
       if (existingIds.has(item.id)) continue;
 
       const scheduledAt = resolveSchedule(
         item as Parameters<typeof resolveSchedule>[0],
         settings,
-        now
+        now,
+        lastScheduledAt
       );
       const idempotencyKey =
         item.idempotencyKey ?? `${item.id}-${now}`;
@@ -198,6 +200,9 @@ export function enqueueMany<T = unknown>(
       );
 
       existingIds.add(item.id);
+      if (!item.manualScheduledAt) {
+        lastScheduledAt = scheduledAt;
+      }
     }
   });
 
@@ -492,7 +497,8 @@ function getRandomIntervalMs(settings: QueueScheduleSettings): number {
 function resolveSchedule(
   item: { manualScheduledAt?: number; scheduledAt?: number; status?: string },
   settings: QueueScheduleSettings,
-  now: number
+  now: number,
+  lastScheduledAt?: number
 ): number {
   if (typeof item.manualScheduledAt === "number") {
     return item.manualScheduledAt;
@@ -520,21 +526,26 @@ function resolveSchedule(
       : q.scheduled_at))
     .filter((v): v is number => typeof v === "number");
 
-  const lastInserted = queue.reduce<Record<string, unknown> | null>(
-    (acc, q) => {
-      if (!acc) return q;
-      const accCreated = (acc.created_at as number) ?? 0;
-      const qCreated = (q.created_at as number) ?? 0;
-      return qCreated > accCreated ? q : acc;
-    },
-    null,
-  );
-  const lastInsertedTime = lastInserted
-    ? (lastInserted.manual_scheduled_at as number) ??
-      (lastInserted.scheduled_at as number) ??
-      (lastInserted.created_at as number) ??
-      0
-    : 0;
+  let lastInsertedTime = 0;
+  if (typeof lastScheduledAt === "number") {
+    lastInsertedTime = lastScheduledAt;
+  } else {
+    const lastInserted = queue.reduce<Record<string, unknown> | null>(
+      (acc, q) => {
+        if (!acc) return q;
+        const accCreated = (acc.created_at as number) ?? 0;
+        const qCreated = (q.created_at as number) ?? 0;
+        return qCreated > accCreated ? q : acc;
+      },
+      null,
+    );
+    lastInsertedTime = lastInserted
+      ? (lastInserted.manual_scheduled_at as number) ??
+        (lastInserted.scheduled_at as number) ??
+        (lastInserted.created_at as number) ??
+        0
+      : 0;
+  }
 
   let candidate = Math.max(now, lastInsertedTime) + getRandomIntervalMs(settings);
 

@@ -369,15 +369,26 @@ export const TelegramQueueDashboard = (): JSX.Element => {
             <RefreshCw className="h-3 w-3" />
           </button>
         </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={handleClearQueue}
-          className="gap-2"
-        >
-          <Trash2 className="h-4 w-4" />
-          Clear queue
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleClearQueue}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear queue
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCsvFailedOpen(!csvFailedOpen)}
+            className="gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Importar CSV
+          </Button>
+        </div>
       </div>
 
       <Collapsible
@@ -456,24 +467,8 @@ export const TelegramQueueDashboard = (): JSX.Element => {
         <p className="text-xs text-muted-foreground">{addStatus}</p>
       ) : null}
 
-      <Collapsible
-        open={csvFailedOpen}
-        onOpenChange={setCsvFailedOpen}
-        className="rounded-md border border-white/10 bg-white/5"
-      >
-        <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 text-left hover:bg-white/5 transition-colors">
-          <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium">Importar CSV</span>
-          {csvResult ? (
-            <Badge variant="secondary" className="font-mono text-xs">
-              {csvResult.inserted}/{csvResult.total}
-            </Badge>
-          ) : null}
-          <ChevronDown
-            className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180 ml-auto"
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="border-t border-white/10">
+      {csvFailedOpen ? (
+        <div className="rounded-md border border-white/10 bg-white/5">
           <div className="space-y-3 p-3">
             <div className="flex gap-2 items-center">
               <Input
@@ -562,8 +557,8 @@ export const TelegramQueueDashboard = (): JSX.Element => {
               </div>
             ) : null}
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+      ) : null}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
