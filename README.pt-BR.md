@@ -148,7 +148,7 @@ cd frontend && npm run build && npm start
 | `CDP_PORT`          | Porta do Chrome DevTools Protocol (padrão: `9222`)                             | Não         |
 | `PDP_TIMEOUT_MS`    | Timeout da captura de PDP em ms (padrão: `30000`)                             | Não         |
 | `MAX_QUEUE`         | Tamanho máximo da fila de capturas concorrentes (padrão: `20`)                | Não         |
-| `PROFILE_DIR`       | Diretório do perfil do Chrome. Padrão: perfil real do OS (`~/.config/google-chrome` no Linux). Feche o Chrome antes de rodar. | Não |
+| `PROFILE_DIR`       | Diretório do perfil do Chrome. Padrão: perfil real do OS (`~/.config/google-chrome` no Linux / `%LOCALAPPDATA%\Google\Chrome\User Data` no Windows). Feche o Chrome antes de rodar. | Não |
 
 ### Frontend (`frontend/.env`)
 

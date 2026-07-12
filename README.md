@@ -148,7 +148,7 @@ cd frontend && npm run build && npm start
 | `CDP_PORT`          | Chrome DevTools Protocol port (default: `9222`)                             | No       |
 | `PDP_TIMEOUT_MS`    | PDP capture timeout in ms (default: `30000`)                               | No       |
 | `MAX_QUEUE`         | Max concurrent capture queue size (default: `20`)                           | No       |
-| `PROFILE_DIR`       | Chrome profile directory. Default: OS real profile (`~/.config/google-chrome` on Linux). Close Chrome before running. | No |
+| `PROFILE_DIR`       | Chrome profile directory. Default: OS real profile (`~/.config/google-chrome` on Linux / `%LOCALAPPDATA%\Google\Chrome\User Data` on Windows). Close Chrome before running. | No |
 
 ### Frontend (`frontend/.env`)
 
