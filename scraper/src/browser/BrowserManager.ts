@@ -1,17 +1,14 @@
-import { chromium, type Page, type Browser } from "playwright";
-import { spawn, execSync, type ChildProcess } from "node:child_process";
-import os from "node:os";
+import { chromium, type Page, type BrowserContext } from "playwright";
+import { exec } from "node:child_process";
 import { profileBootstrap, cleanSingletonLocks } from "./profileBootstrap.js";
 import { config } from "../config.js";
-import { stealthScript } from "../capture/stealth.js";
 
 const CDP_URL = `http://localhost:${config.cdpPort}`;
+const SHOPEE_HOME = "https://shopee.com.br";
 
 class BrowserManager {
-  private browser: Browser | null = null;
+  private context: BrowserContext | null = null;
   private page: Page | null = null;
-  private chromeProcess: ChildProcess | null = null;
-  private chromePid: number | null = null;
   private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
@@ -25,39 +22,17 @@ class BrowserManager {
     cleanSingletonLocks(config.profileDir);
     this.launchChrome();
     await this.waitForCdp();
-    this.browser = await chromium.connectOverCDP(CDP_URL);
-    this.page = await this.attachPage();
-    // this.page.goto("https://shopee.com.br", { waitUntil: "networkidle" });
-  }
-
-  private async attachPage(): Promise<Page> {
-    if (!this.browser) throw new Error("Browser not connected");
-    const context = this.browser.contexts()[0];
-    if (!context) {
-      throw new Error(
-        "No browser context available via CDP — profile may not be authenticated. " +
-          "Log into Shopee once in this Chrome profile.",
-      );
-    }
-    const page = context.pages()[0] ?? (await context.newPage());
-    // await page.addInitScript(stealthScript);
-    return page;
+    const browser = await chromium.connectOverCDP(CDP_URL);
+    this.context = browser.contexts()[0];
+    this.page = this.context.pages()[0] ?? (await this.context.newPage());
+    await this.page.goto(SHOPEE_HOME, { waitUntil: "networkidle" });
   }
 
   private launchChrome(): void {
-    const args = [
-      `--user-data-dir=${config.profileDir}`,
-      `--remote-debugging-port=${config.cdpPort}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-    ];
-    this.chromeProcess = spawn(config.chromeExecutable, args, {
-      detached: true,
-      stdio: "ignore",
-    });
-    this.chromePid = this.chromeProcess.pid ?? null;
-    this.chromeProcess.unref();
-    console.log(`BrowserManager: Chrome launched (PID ${this.chromePid})`);
+    exec(
+      `${config.chromeExecutable} --user-data-dir=${config.profileDir} --remote-debugging-port=${config.cdpPort}`,
+    );
+    console.log("BrowserManager: Chrome launched");
   }
 
   private async waitForCdp(maxWaitMs = 15000): Promise<void> {
@@ -73,55 +48,37 @@ class BrowserManager {
   }
 
   async ensureConnected(): Promise<Page> {
-    if (this.browser?.isConnected() && this.page) return this.page;
+    if (this.context && this.page) {
+      try {
+        await this.page.evaluate(() => true);
+        return this.page;
+      } catch {}
+    }
 
     console.log("BrowserManager: reconnecting...");
     try {
-      this.browser = await chromium.connectOverCDP(CDP_URL);
-      this.page = await this.attachPage();
+      const browser = await chromium.connectOverCDP(CDP_URL);
+      this.context = browser.contexts()[0];
+      this.page = this.context.pages()[0] ?? (await this.context.newPage());
       return this.page;
     } catch {
       console.log("BrowserManager: reconnect failed, relaunching Chrome...");
-      this.killChrome();
-      cleanSingletonLocks(config.profileDir, true);
       this.launchChrome();
       await this.waitForCdp();
-      this.browser = await chromium.connectOverCDP(CDP_URL);
-      this.page = await this.attachPage();
+      const browser = await chromium.connectOverCDP(CDP_URL);
+      this.context = browser.contexts()[0];
+      this.page = this.context.pages()[0] ?? (await this.context.newPage());
       return this.page;
     }
   }
 
   isConnected(): boolean {
-    return this.browser?.isConnected() ?? false;
+    return this.context !== null;
   }
 
   async close(): Promise<void> {
-    try {
-      await this.browser?.close();
-    } catch {}
-    this.browser = null;
+    this.context = null;
     this.page = null;
-    this.killChrome();
-  }
-
-  private killChrome(): void {
-    if (!this.chromePid) return;
-    try {
-      if (os.platform() === "win32") {
-        execSync(`taskkill /PID ${this.chromePid} /T /F`, { stdio: "ignore" });
-      } else {
-        process.kill(this.chromePid, "SIGTERM");
-        const pid = this.chromePid;
-        setTimeout(() => {
-          try {
-            process.kill(pid, "SIGKILL");
-          } catch {}
-        }, 5000);
-      }
-    } catch {}
-    this.chromePid = null;
-    this.chromeProcess = null;
   }
 }
 
