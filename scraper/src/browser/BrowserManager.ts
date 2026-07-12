@@ -27,7 +27,7 @@ class BrowserManager {
     await this.waitForCdp();
     this.browser = await chromium.connectOverCDP(CDP_URL);
     this.page = await this.attachPage();
-    this.page.goto("https://shopee.com.br", { waitUntil: "networkidle" });
+    // this.page.goto("https://shopee.com.br", { waitUntil: "networkidle" });
   }
 
   private async attachPage(): Promise<Page> {
@@ -40,7 +40,7 @@ class BrowserManager {
       );
     }
     const page = context.pages()[0] ?? (await context.newPage());
-    await page.addInitScript(stealthScript);
+    // await page.addInitScript(stealthScript);
     return page;
   }
 

@@ -6,12 +6,24 @@ const env = process.env;
 
 function resolveProfileDir(): string {
   if (env.PROFILE_DIR) return env.PROFILE_DIR;
-  return path.normalize(`${import.meta.dirname}/../../.chrome-profile`);
+  return path.normalize(`${import.meta.dirname}/../../scraper/.chrome-profile`);
 }
 
 function resolveChromeExecutable(): string {
   if (env.CHROME_EXECUTABLE) return env.CHROME_EXECUTABLE;
-  if (os.platform() !== "win32") return "google-chrome";
+
+  if (os.platform() !== "win32") {
+    const linuxCandidates = [
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/chromium",
+    ];
+    for (const c of linuxCandidates) {
+      if (c && fs.existsSync(c)) return c;
+    }
+    return "google-chrome";
+  }
 
   const candidates = [
     path.join(process.env.ProgramFiles ?? "", "Google", "Chrome", "Application", "chrome.exe"),
@@ -33,3 +45,5 @@ export const config = {
   maxQueue: Number(env.MAX_QUEUE) || 20,
   profileDir: resolveProfileDir(),
 } as const;
+
+console.log(config)
