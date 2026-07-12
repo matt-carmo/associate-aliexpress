@@ -1,6 +1,6 @@
 import { chromium, type Page, type BrowserContext } from "playwright";
 import { exec } from "node:child_process";
-import { profileBootstrap, cleanSingletonLocks } from "./profileBootstrap.js";
+import { cleanSingletonLocks } from "./profileBootstrap.js";
 import { config } from "../config.js";
 
 const CDP_URL = `http://localhost:${config.cdpPort}`;
@@ -18,7 +18,6 @@ class BrowserManager {
   }
 
   private async _doInit(): Promise<void> {
-    profileBootstrap(config.profileDir);
     cleanSingletonLocks(config.profileDir);
     this.launchChrome();
     await this.waitForCdp();

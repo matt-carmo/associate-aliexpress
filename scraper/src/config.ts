@@ -6,7 +6,11 @@ const env = process.env;
 
 function resolveProfileDir(): string {
   if (env.PROFILE_DIR) return env.PROFILE_DIR;
-  return path.normalize(`${import.meta.dirname}/../../.chrome-profile`);
+
+  if (os.platform() === "win32") {
+    return path.join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "User Data");
+  }
+  return path.join(os.homedir(), ".config", "google-chrome");
 }
 
 function resolveChromeExecutable(): string {
