@@ -91,6 +91,24 @@ npm run dev
 
 O painel será aberto em `http://localhost:3000`.
 
+### Scraper (Shopee PDP)
+
+```bash
+cd scraper
+cp .env.example .env
+npm install
+npm run dev
+```
+
+O scraper será iniciado em `http://localhost:4001`.
+
+> **Importante**: o scraper reutiliza diretamente o perfil do Chrome do seu sistema
+> (`~/.config/google-chrome` no Linux) para compartilhar a sessão logada da Shopee —
+> ele **não** copia o perfil. Por isso, **feche o Chrome normal antes de rodar o scraper**;
+> caso contrário o Chrome recusa iniciar (perfil em uso). Se precisar rodar com o Chrome
+> aberto, defina `PROFILE_DIR` em `scraper/.env` apontando para um diretório de perfil
+> dedicado (e faça login na Shopee uma vez nesse perfil).
+
 ### Build para produção
 
 ```bash
@@ -119,6 +137,18 @@ cd frontend && npm run build && npm start
 | `CORS_ORIGIN`            | Origem permitida no CORS (padrão: `*`)             | Não         |
 | `QUEUE_DATA_DIR`         | Diretório dos dados da fila (padrão: `data`)       | Não         |
 | `WHATSAPP_AUTH_DIR`      | Diretório de autenticação do WhatsApp (padrão: `auth_info_baileys`) | Não |
+
+### Scraper (`scraper/.env`)
+
+| Variável            | Descrição                                                                     | Obrigatório |
+| ------------------- | ----------------------------------------------------------------------------- | ----------- |
+| `PORT`              | Porta do servidor (padrão: `4001`)                                            | Não         |
+| `CORS_ORIGIN`       | Origem permitida no CORS (padrão: `http://localhost:3000`)                    | Não         |
+| `CHROME_EXECUTABLE` | Caminho do executável do Chrome (padrão: `google-chrome` no PATH)              | Não         |
+| `CDP_PORT`          | Porta do Chrome DevTools Protocol (padrão: `9222`)                             | Não         |
+| `PDP_TIMEOUT_MS`    | Timeout da captura de PDP em ms (padrão: `30000`)                             | Não         |
+| `MAX_QUEUE`         | Tamanho máximo da fila de capturas concorrentes (padrão: `20`)                | Não         |
+| `PROFILE_DIR`       | Diretório do perfil do Chrome. Padrão: perfil real do OS (`~/.config/google-chrome` no Linux). Feche o Chrome antes de rodar. | Não |
 
 ### Frontend (`frontend/.env`)
 

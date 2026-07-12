@@ -91,6 +91,24 @@ npm run dev
 
 The dashboard will be available at `http://localhost:3000`.
 
+### Scraper (Shopee PDP)
+
+```bash
+cd scraper
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The scraper will start at `http://localhost:4001`.
+
+> **Important**: the scraper reuses your system's real Chrome profile directly
+> (`~/.config/google-chrome` on Linux) so it shares your logged-in Shopee session —
+> it does **not** copy the profile. Therefore, **close your normal Chrome before running
+> the scraper**; otherwise Chrome will refuse to launch (profile already in use). If you
+> need to run with Chrome open, set `PROFILE_DIR` in `scraper/.env` to a dedicated profile
+> directory (and log into Shopee once in that profile).
+
 ### Production Build
 
 ```bash
@@ -119,6 +137,18 @@ cd frontend && npm run build && npm start
 | `CORS_ORIGIN`           | Allowed CORS origin (default: `*`)                               | No       |
 | `QUEUE_DATA_DIR`        | Queue data directory (default: `data`)                           | No       |
 | `WHATSAPP_AUTH_DIR`     | WhatsApp authentication directory (default: `auth_info_baileys`) | No       |
+
+### Scraper (`scraper/.env`)
+
+| Variable            | Description                                                                 | Required |
+| ------------------- | --------------------------------------------------------------------------- | -------- |
+| `PORT`              | Server port (default: `4001`)                                               | No       |
+| `CORS_ORIGIN`       | Allowed CORS origin (default: `http://localhost:3000`)                     | No       |
+| `CHROME_EXECUTABLE` | Chrome executable path (default: `google-chrome` on PATH)                  | No       |
+| `CDP_PORT`          | Chrome DevTools Protocol port (default: `9222`)                             | No       |
+| `PDP_TIMEOUT_MS`    | PDP capture timeout in ms (default: `30000`)                               | No       |
+| `MAX_QUEUE`         | Max concurrent capture queue size (default: `20`)                           | No       |
+| `PROFILE_DIR`       | Chrome profile directory. Default: OS real profile (`~/.config/google-chrome` on Linux). Close Chrome before running. | No |
 
 ### Frontend (`frontend/.env`)
 
