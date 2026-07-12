@@ -178,7 +178,13 @@ async function init() {
        * CREDS
        */
 
-      newSock.ev.on("creds.update", auth.saveCreds);
+      newSock.ev.on("creds.update", async () => {
+        try {
+          await auth.saveCreds();
+        } catch (err) {
+          console.error("[WhatsApp] saveCreds failed:", err);
+        }
+      });
     } catch (error) {
       console.log("Erro ao inicializar WhatsApp:", error);
       sock = null;
@@ -196,16 +202,6 @@ async function init() {
 export async function getSocket() {
   if (!sock) {
     await init();
-  }
-
-  if (sock && connectionStatus !== "connected") {
-    const deadline = Date.now() + 30_000;
-    while (
-      (connectionStatus as ConnectionStatus) !== "connected" &&
-      Date.now() < deadline
-    ) {
-      await new Promise<void>((r) => setTimeout(r, 500));
-    }
   }
 
   return sock;
@@ -226,6 +222,9 @@ export async function sendImage(
 
   const { data } = await axios.get(imageUrl, {
     responseType: "arraybuffer",
+    timeout: 30_000,
+    maxContentLength: 10 * 1024 * 1024,
+    maxBodyLength: 10 * 1024 * 1024,
   });
 
   const buffer = Buffer.from(data);

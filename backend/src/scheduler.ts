@@ -19,6 +19,7 @@ const POLL_INTERVAL_MS = 10_000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
 let running = false;
+let busy = false;
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let cleanupHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -128,6 +129,8 @@ async function processItem(item: QueueItem): Promise<void> {
 }
 
 async function tick() {
+  if (busy) return;
+  busy = true;
   try {
     const item = claimNextItem();
     if (!item) return;
@@ -135,6 +138,8 @@ async function tick() {
     await processItem(item);
   } catch (err) {
     console.error("[Scheduler] Tick error:", err);
+  } finally {
+    busy = false;
   }
 }
 

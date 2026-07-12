@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import { startScheduler, stopScheduler } from "./scheduler.js";
 import { getConnectionStatus, getSocket } from "./services/whatsapp.js";
@@ -36,6 +36,19 @@ app.use("/telegram", telegramRouter);
 app.use("/whatsapp", whatsappRouter);
 app.use("/queue", queueRouter);
 
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  const isBadJson = err instanceof SyntaxError && "body" in err;
+  console.error("[Server] Request error:", err);
+  if (res.headersSent) return;
+  res.status(isBadJson ? 400 : 500).json({
+    error: isBadJson ? "Invalid JSON body" : "Internal server error",
+  });
+});
+
 const server = app.listen(port, () => {
   console.log(`[Messaging] API listening on ${port}`);
   startScheduler();
@@ -68,3 +81,11 @@ function gracefulShutdown(signal: string) {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[Server] Unhandled rejection (keeping alive):", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[Server] Uncaught exception (keeping alive):", err);
+});
