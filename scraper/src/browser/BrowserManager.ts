@@ -1,9 +1,7 @@
 import { chromium, type Page, type BrowserContext } from "playwright";
-import { exec } from "node:child_process";
-import { cleanSingletonLocks } from "./profileBootstrap.js";
+import fs from "node:fs";
 import { config } from "../config.js";
 
-const CDP_URL = `http://localhost:${config.cdpPort}`;
 const SHOPEE_HOME = "https://shopee.com.br";
 
 class BrowserManager {
@@ -17,65 +15,61 @@ class BrowserManager {
     return this.initPromise;
   }
 
-  private async _doInit(): Promise<void> {
-    cleanSingletonLocks(config.profileDir);
-    this.launchChrome();
-    await this.waitForCdp();
-    const browser = await chromium.connectOverCDP(CDP_URL);
-    this.context = browser.contexts()[0];
+  private async _doInit(headless = config.headless): Promise<void> {
+    fs.mkdirSync(config.profileDir, { recursive: true });
+
+    this.context = await chromium.launchPersistentContext(config.profileDir, {
+      channel: "chrome",
+      headless,
+      viewport: null,
+      locale: "pt-BR",
+      timezoneId: "America/Sao_Paulo",
+      colorScheme: "light",
+      permissions: [],
+      serviceWorkers: "allow",
+      baseURL: SHOPEE_HOME,
+      javaScriptEnabled: true,
+      bypassCSP: false,
+      ignoreHTTPSErrors: false,
+      args: [
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--password-store=basic",
+        "--lang=pt-BR",
+        "--disable-features=Translate,RendererCodeIntegrity",
+        "--disable-background-networking",
+        "--disable-component-update",
+      ],
+    });
+
     this.page = this.context.pages()[0] ?? (await this.context.newPage());
-    await this.page.goto(SHOPEE_HOME, { waitUntil: "networkidle" });
-  }
-
-  private launchChrome(): void {
-    exec(
-      `${config.chromeExecutable} --user-data-dir=${config.profileDir} --remote-debugging-port=${config.cdpPort}`,
-    );
-    console.log("BrowserManager: Chrome launched");
-  }
-
-  private async waitForCdp(maxWaitMs = 15000): Promise<void> {
-    const start = Date.now();
-    while (Date.now() - start < maxWaitMs) {
-      try {
-        const res = await fetch(`${CDP_URL}/json/version`);
-        if (res.ok) return;
-      } catch {}
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    throw new Error("CDP did not become available within timeout");
+    await this.page.goto(SHOPEE_HOME, { waitUntil: "domcontentloaded" });
   }
 
   async ensureConnected(): Promise<Page> {
-    if (this.context && this.page) {
+    if (this.context && this.page && !this.context.isClosed()) {
       try {
         await this.page.evaluate(() => true);
         return this.page;
-      } catch {}
+      } catch {
+        this.page = null;
+      }
     }
 
-    console.log("BrowserManager: reconnecting...");
-    try {
-      const browser = await chromium.connectOverCDP(CDP_URL);
-      this.context = browser.contexts()[0];
-      this.page = this.context.pages()[0] ?? (await this.context.newPage());
-      return this.page;
-    } catch {
-      console.log("BrowserManager: reconnect failed, relaunching Chrome...");
-      this.launchChrome();
-      await this.waitForCdp();
-      const browser = await chromium.connectOverCDP(CDP_URL);
-      this.context = browser.contexts()[0];
-      this.page = this.context.pages()[0] ?? (await this.context.newPage());
-      return this.page;
-    }
+    console.log("BrowserManager: context closed or page dead, reinitializing...");
+    await this.close();
+    await this._doInit();
+    return this.page!;
   }
 
   isConnected(): boolean {
-    return this.context !== null;
+    return this.context !== null && !this.context.isClosed();
   }
 
   async close(): Promise<void> {
+    if (this.context) {
+      await this.context.close().catch(() => {});
+    }
     this.context = null;
     this.page = null;
   }

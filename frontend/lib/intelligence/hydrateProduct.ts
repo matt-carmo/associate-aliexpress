@@ -136,6 +136,27 @@ const mapShopeeProductToDiscovery = (
   };
 };
 
+async function hydrateShopeeViaOfficialApi(
+  productId: string,
+  fallback: DiscoveryProduct,
+  signal?: AbortSignal,
+): Promise<DiscoveryProduct | null> {
+  try {
+    const apiUrl = `/api/shopee?type=product-details&item_id=${encodeURIComponent(productId)}`;
+    const response = await fetch(apiUrl, { signal });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload.product) return null;
+    const periodEnd = payload.product.periodEndTime
+      ? payload.product.periodEndTime * 1000
+      : 0;
+    if (periodEnd && periodEnd <= Date.now()) return null;
+    return mapShopeeProductToDiscovery(payload.product, fallback);
+  } catch {
+    return null;
+  }
+}
+
 export async function hydrateProduct(
   rawUrl: string,
   signal?: AbortSignal,
@@ -189,6 +210,10 @@ export async function hydrateProduct(
             rating: pdp.ratingStar || fallback.rating,
           };
         }
+      }
+      if (!hydrated) {
+        console.warn(`[Shopee] PDP scraper failed, falling back to official API: ${rawUrl}`);
+        hydrated = await hydrateShopeeViaOfficialApi(productId, fallback, combinedSignal);
       }
     } else {
       const apiUrl = `/api/ali?type=product-details&product_id=${encodeURIComponent(productId)}&product_detail_url=${encodeURIComponent(rawUrl)}`;
@@ -386,6 +411,11 @@ export async function hydrateProductWithScraper(
     // Scraper failed
   } finally {
     clearTimeout(timeoutId);
+  }
+
+  if (!hydrated) {
+    console.warn(`[Shopee] PDP scraper failed, falling back to official API: ${rawUrl}`);
+    hydrated = await hydrateShopeeViaOfficialApi(productId, fallback, combinedSignal);
   }
 
   if (!hydrated) return null;

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { browserManager } from "../browser/BrowserManager.js";
+import { assertShopeeSession } from "../browser/session.js";
 import { capturePdp } from "../capture/pdpCapture.js";
 import { normalizePdp } from "../capture/pdpNormalizer.js";
 import { config } from "../config.js";
@@ -23,6 +24,7 @@ export function createPdpHandler(queue: SerialQueue) {
     try {
       const result = await queue.enqueue(async () => {
         const page = await browserManager.ensureConnected();
+        await assertShopeeSession(page);
 
         const captured = await capturePdp(page, url, timeout);
 
