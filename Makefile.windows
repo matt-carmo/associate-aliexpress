@@ -1,0 +1,6 @@
+ENV_FILE=.env
+
+.PHONY: env
+
+env:
+	powershell -ExecutionPolicy Bypass -File scripts/setup-env.ps1 $(ENV_FILE)
