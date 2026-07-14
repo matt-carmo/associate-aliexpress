@@ -21,7 +21,7 @@ export const DialogProduct = (props: { product: ProductType }): JSX.Element => {
 
   const [sending, setSending] = useState<'Enviando' | 'Enviado' | 'Erro' | 'Enviar'>('Enviar');
   const messagingBaseUrl =
-    process.env.NEXT_PUBLIC_MESSAGING_API_URL || "http://localhost:4000";
+    process.env.NEXT_PUBLIC_MESSAGING_API_URL || "http://ec2-18-222-80-161.us-east-2.compute.amazonaws.com:4000";
 
   return (
     <li key={product.product_id} className="flex-1">
@@ -46,7 +46,7 @@ export const DialogProduct = (props: { product: ProductType }): JSX.Element => {
 ✅ Por: R$ ${product.target_app_sale_price} 😱😱
 ${product.promo_code_info ? `\n🏷️ <b>Cupom</b>:<code>${product.promo_code_info.promo_code}</code>,\n` : ''}
 🛒 ${promotionLink}
-                \n😎🚀 Para mais ofertas, acesse: https://t.me/top_ofertas_online
+                \n😎🚀 Para mais ofertas, acesse: radarimportados.netlify.app
                 `.trim());
 
               setLoadingTextArea(false);

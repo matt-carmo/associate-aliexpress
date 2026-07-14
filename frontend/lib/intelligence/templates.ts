@@ -27,7 +27,7 @@ export const TEMPLATES: Record<
         "",
         `🛒 ${link}`,
         "",
-        "😎🚀 Para mais ofertas, acesse: https://t.me/top_ofertas_online",
+        "😎🚀 Para mais ofertas, acesse: radarimportados.netlify.app",
       ].join("\n");
     },
   },
