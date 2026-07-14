@@ -1,7 +1,7 @@
 import "server-only";
 import type { ShopeePdpData } from "@/types/shopee";
 
-const SCRAPER_URL = process.env.NEXT_PUBLIC_SCRAPER_API_URL ?? "http://localhost:4001";
+const SCRAPER_URL = process.env.SCRAPER_API_URL ?? "http://localhost:4001";
 
 export async function fetchPdp(url: string, timeoutMs = 30000): Promise<ShopeePdpData> {
   const res = await fetch(`${SCRAPER_URL}/pdp`, {

@@ -29,47 +29,17 @@ git clone <repository-url>
 cd associate-affiliate
 ```
 
-### 2. Backend
+### 2. Setup environment variables
 
 ```bash
-cd backend
 cp .env.example .env
+# Edit .env with your credentials, then run:
+make env
 npm install
 ```
 
-Edit the `backend/.env` file with your credentials:
-
-```env
-ALIEXPRESS_APP_KEY=your_app_key
-ALIEXPRESS_APP_SECRET=your_app_secret
-SHOPEE_APP_ID=your_shopee_app_id
-SHOPEE_APP_SECRET=your_shopee_app_secret
-TELEGRAM_BOT_TOKEN=telegram_bot_token
-TELEGRAM_BOT_ID=bot_id
-TELEGRAM_CHAT_ID=telegram_chat_id
-WHATSAPP_CHAT_ID=whatsapp_chat_id
-PORT=4000
-CORS_ORIGIN=*
-```
-
-### 3. Frontend
-
-```bash
-cd frontend
-cp .env.example .env
-npm install
-```
-
-Edit the `frontend/.env` file:
-
-```env
-ALIEXPRESS_APP_KEY=your_app_key
-ALIEXPRESS_APP_SECRET=your_app_secret
-SHOPEE_APP_ID=your_shopee_app_id
-SHOPEE_APP_SECRET=your_shopee_app_secret
-NEXT_PUBLIC_MESSAGING_API_URL=http://localhost:4000
-TELEGRAM_CHAT_ID=telegram_chat_id
-```
+The `make env` command propagates `.env` to `backend/`, `frontend/`, and `scraper/`,
+and generates `frontend/.env.development` / `frontend/.env.production`.
 
 ## Running the Project
 
@@ -95,7 +65,6 @@ The dashboard will be available at `http://localhost:3000`.
 
 ```bash
 cd scraper
-cp .env.example .env
 npm install
 npm run dev
 ```
@@ -106,7 +75,7 @@ The scraper will start at `http://localhost:4001`.
 > (`~/.config/google-chrome` on Linux) so it shares your logged-in Shopee session —
 > it does **not** copy the profile. Therefore, **close your normal Chrome before running
 > the scraper**; otherwise Chrome will refuse to launch (profile already in use). If you
-> need to run with Chrome open, set `PROFILE_DIR` in `scraper/.env` to a dedicated profile
+> need to run with Chrome open, set `PROFILE_DIR` in `.env` to a dedicated profile
 > directory (and log into Shopee once in that profile).
 
 ### Production Build
@@ -121,45 +90,30 @@ cd frontend && npm run build && npm start
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+All variables are defined in the root `.env` file and propagated via `make env`.
 
-| Variable                | Description                                                      | Required |
-| ----------------------- | ---------------------------------------------------------------- | -------- |
-| `ALIEXPRESS_APP_KEY`    | AliExpress affiliate API App Key                                 | Yes      |
-| `ALIEXPRESS_APP_SECRET` | AliExpress affiliate API App Secret                              | Yes      |
-| `SHOPEE_APP_ID`         | Shopee affiliate API App ID                                      | Yes      |
-| `SHOPEE_APP_SECRET`     | Shopee affiliate API App Secret                                  | Yes      |
-| `TELEGRAM_BOT_TOKEN`    | Telegram bot token (provided by @BotFather)                      | Yes      |
-| `TELEGRAM_BOT_ID`       | Telegram bot ID                                                  | No       |
-| `TELEGRAM_CHAT_ID`      | Telegram chat/group ID for publishing                            | Yes      |
-| `WHATSAPP_CHAT_ID`      | WhatsApp chat/group ID for publishing                            | No       |
-| `PORT`                  | Server port (default: `4000`)                                    | No       |
-| `CORS_ORIGIN`           | Allowed CORS origin (default: `*`)                               | No       |
-| `QUEUE_DATA_DIR`        | Queue data directory (default: `data`)                           | No       |
-| `WHATSAPP_AUTH_DIR`     | WhatsApp authentication directory (default: `auth_info_baileys`) | No       |
-
-### Scraper (`scraper/.env`)
-
-| Variable            | Description                                                                 | Required |
-| ------------------- | --------------------------------------------------------------------------- | -------- |
-| `PORT`              | Server port (default: `4001`)                                               | No       |
-| `CORS_ORIGIN`       | Allowed CORS origin (default: `http://localhost:3000`)                     | No       |
-| `CHROME_EXECUTABLE` | Chrome executable path (default: `google-chrome` on PATH)                  | No       |
-| `CDP_PORT`          | Chrome DevTools Protocol port (default: `9222`)                             | No       |
-| `PDP_TIMEOUT_MS`    | PDP capture timeout in ms (default: `30000`)                               | No       |
-| `MAX_QUEUE`         | Max concurrent capture queue size (default: `20`)                           | No       |
-| `PROFILE_DIR`       | Chrome profile directory. Default: OS real profile (`~/.config/google-chrome` on Linux / `%LOCALAPPDATA%\Google\Chrome\User Data` on Windows). Close Chrome before running. | No |
-
-### Frontend (`frontend/.env`)
-
-| Variable                        | Description                                             | Required |
-| ------------------------------- | ------------------------------------------------------- | -------- |
-| `ALIEXPRESS_APP_KEY`            | AliExpress affiliate API App Key                        | Yes      |
-| `ALIEXPRESS_APP_SECRET`         | AliExpress affiliate API App Secret                     | Yes      |
-| `SHOPEE_APP_ID`                 | Shopee affiliate API App ID                             | Yes      |
-| `SHOPEE_APP_SECRET`             | Shopee affiliate API App Secret                         | Yes      |
-| `NEXT_PUBLIC_MESSAGING_API_URL` | Backend API base URL (default: `http://localhost:4000`) | Yes      |
-| `TELEGRAM_CHAT_ID`              | Telegram chat ID                                        | No       |
+| Variable                        | Used by         | Description                                                         | Required |
+| ------------------------------- | --------------- | ------------------------------------------------------------------- | -------- |
+| `ALIEXPRESS_APP_KEY`            | Frontend        | AliExpress affiliate API App Key                                    | Yes      |
+| `ALIEXPRESS_APP_SECRET`         | Frontend        | AliExpress affiliate API App Secret                                 | Yes      |
+| `SHOPEE_APP_ID`                 | Frontend        | Shopee affiliate API App ID                                         | Yes      |
+| `SHOPEE_APP_SECRET`             | Frontend        | Shopee affiliate API App Secret                                     | Yes      |
+| `TELEGRAM_BOT_TOKEN`            | Backend         | Telegram bot token (from @BotFather)                                | Yes      |
+| `TELEGRAM_BOT_ID`               | Backend         | Telegram bot ID                                                     | No       |
+| `TELEGRAM_CHAT_ID`              | Backend         | Telegram chat/group ID for publishing                               | Yes      |
+| `WHATSAPP_CHAT_ID`              | Backend         | WhatsApp chat/group ID for publishing                               | No       |
+| `BACKEND_PORT`                  | Backend         | Server port (default: `4000`)                                       | No       |
+| `CORS_ORIGIN`                   | Backend         | Allowed CORS origin (default: `*`)                                  | No       |
+| `QUEUE_DATA_DIR`                | Backend         | Queue database directory (default: `data`)                          | No       |
+| `WHATSAPP_AUTH_DIR`             | Backend         | WhatsApp auth directory (default: `auth_info_baileys`)              | No       |
+| `NEXT_PUBLIC_MESSAGING_API_URL` | Frontend(client)| Backend API URL (default: `http://localhost:4000`)                  | Yes      |
+| `SCRAPER_API_URL`               | Frontend(server)| Scraper API URL (default: `http://localhost:4001`)                  | No       |
+| `SCRAPER_PORT`                  | Scraper         | Server port (default: `4001`)                                       | No       |
+| `SCRAPER_CORS_ORIGIN`           | Scraper         | Allowed CORS origin (default: `http://localhost:3000`)              | No       |
+| `PDP_TIMEOUT_MS`                | Scraper         | PDP capture timeout in ms (default: `30000`)                        | No       |
+| `MAX_QUEUE`                     | Scraper         | Max concurrent capture queue size (default: `20`)                   | No       |
+| `SHOPEE_HEADLESS`               | Scraper         | Run Chrome headless (default: `true`)                               | No       |
+| `PROFILE_DIR`                   | Scraper         | Chrome profile directory. Default: OS real profile. Close Chrome before running. | No |
 
 ## Features
 

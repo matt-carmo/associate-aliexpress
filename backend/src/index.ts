@@ -9,7 +9,7 @@ import { getQueueStats } from "./storage/queueStorage.js";
 import { closeDb } from "./storage/database.js";
 
 const app = express();
-const port = Number(process.env.PORT) || 4000;
+const port = Number(process.env.BACKEND_PORT) || 4000;
 const startTime = Date.now();
 
 const corsOrigin = process.env.CORS_ORIGIN ?? "*";

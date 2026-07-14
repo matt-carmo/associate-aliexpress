@@ -43,7 +43,7 @@ class BrowserManager {
     });
 
     this.page = this.context.pages()[0] ?? (await this.context.newPage());
-    await this.page.goto(SHOPEE_HOME, { waitUntil: "domcontentloaded" });
+    // await this.page.goto(SHOPEE_HOME, { waitUntil: "domcontentloaded" });
   }
 
   async ensureConnected(): Promise<Page> {

@@ -9,8 +9,8 @@ function resolveProfileDir(): string {
 }
 
 export const config = {
-  port: Number(env.PORT) || 4001,
-  corsOrigin: env.CORS_ORIGIN || "http://localhost:3000",
+  port: Number(env.SCRAPER_PORT) || 4001,
+  corsOrigin: env.SCRAPER_CORS_ORIGIN || "http://localhost:3000",
   headless: env.SHOPEE_HEADLESS !== "false",
   pdpTimeoutMs: Number(env.PDP_TIMEOUT_MS) || 30000,
   maxQueue: Number(env.MAX_QUEUE) || 20,
