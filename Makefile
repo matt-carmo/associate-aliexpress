@@ -25,7 +25,14 @@ env:
 reset-backend:
 	@echo "Resetting backend service..."
 	@cd backend && \
-	@sudo kill -9 $(sudo lsof -t -i:4000) 2>/dev/null || true; \
-	@sudo rm -rf auth_info_baileys/ && \
-	@nohup npm start > ./app.log 2>&1 &
+	PID=$$(sudo lsof -t -i:4000); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping backend (PID=$$PID)..."; \
+		sudo kill -9 $$PID; \
+		sleep 2; \
+	fi; \
+	echo "Removing Baileys session..."; \
+	sudo rm -rf auth_info_baileys/; \
+	echo "Starting backend..."; \
+	nohup npm start > app.log 2>&1 &
 	@echo "✅ Backend service reset successfully."
