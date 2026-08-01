@@ -1,5 +1,4 @@
 import express, { type Request, type Response, type NextFunction } from "express";
-import cors from "cors";
 import { startScheduler, stopScheduler } from "./scheduler.js";
 import { getConnectionStatus, getSocket } from "./services/whatsapp.js";
 import { telegramRouter } from "./routes/telegram.js";
@@ -7,21 +6,25 @@ import { whatsappRouter } from "./routes/whatsapp.js";
 import { queueRouter } from "./routes/queue.js";
 import { getQueueStats } from "./storage/queueStorage.js";
 import { closeDb } from "./storage/database.js";
+import cors from "cors";
 
 const app = express();
 const port = Number(process.env.BACKEND_PORT) || 4000;
 const startTime = Date.now();
 
-const corsOrigin = process.env.CORS_ORIGIN ?? "*";
+const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+
+console.log(`[Server] CORS_ORIGIN set to: ${corsOrigin}`);
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", async (_req, res) => {
+
   const waStatus = getConnectionStatus();
   const stats = getQueueStats();
   const uptime = Math.floor((Date.now() - startTime) / 1000);
 
-  res.json({
+  return res.json({
     status: "ok",
     uptime,
     whatsapp: {
@@ -49,17 +52,15 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-const server = app.listen(port, () => {
-  console.log(`[Messaging] API listening on ${port}`);
+const server = app.listen(port, '127.0.0.1',  (e) => {
   startScheduler();
-  console.log("[Messaging] Scheduler started");
   getSocket()
     .then(() => console.log("[Messaging] WhatsApp socket initialized"))
     .catch((err) =>
       console.warn("[Messaging] WhatsApp init failed (will retry on first send):", err)
     );
 });
-
+console.log(server)
 function gracefulShutdown(signal: string) {
   console.log(`\n[Server] Received ${signal}. Shutting down gracefully...`);
 

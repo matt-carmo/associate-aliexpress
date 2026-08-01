@@ -69,12 +69,16 @@ async function init() {
     try {
       const authDir = process.env.WHATSAPP_AUTH_DIR ?? "auth_info_baileys";
       const auth = await useMultiFileAuthState(authDir);
+      const version = [2, 3000, 1037641644] as [number, number, number];
 
       const newSock = makeWASocket({
+        version,
         auth: auth.state,
         browser: Browsers.ubuntu("Affiliate Platform"),
         markOnlineOnConnect: false,
         syncFullHistory: false,
+        generateHighQualityLinkPreview: true,
+
       });
 
       sock = newSock;
@@ -89,6 +93,8 @@ async function init() {
 
         if (qr) {
           qrCode = qr;
+          console.log("QR Code gerado. Escaneie com o WhatsApp:");
+          console.log(qr);
           globalForWhatsApp.__whatsappQrCode = qr;
         }
 
