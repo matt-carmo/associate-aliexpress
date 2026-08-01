@@ -25,7 +25,7 @@ env:
 reset-backend:
 	@echo "Resetting backend service..."
 	@cd backend && \
-	sudo kill -9 $(sudo lsof -t -i:4000) 2>/dev/null || true; \
-	sudo rm -rf auth_info_baileys/ && \
-	nohup npm start > ./app.log 2>&1 &
+	@sudo kill -9 $(sudo lsof -t -i:4000) 2>/dev/null || true; \
+	@sudo rm -rf auth_info_baileys/ && \
+	@nohup npm start > ./app.log 2>&1 &
 	@echo "✅ Backend service reset successfully."
