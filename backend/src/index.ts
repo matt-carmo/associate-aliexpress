@@ -52,7 +52,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-const server = app.listen(port, '0.0.0.0',  (e) => {
+const server = app.listen(port,  (e) => {
   startScheduler();
   getSocket()
     .then(() => console.log("[Messaging] WhatsApp socket initialized"))
