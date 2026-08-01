@@ -12,7 +12,7 @@ const app = express();
 const port = Number(process.env.BACKEND_PORT) || 4000;
 const startTime = Date.now();
 
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+const corsOrigin = process.env.CORS_ORIGIN || "*";
 
 console.log(`[Server] CORS_ORIGIN set to: ${corsOrigin}`);
 app.use(cors({ origin: corsOrigin }));
